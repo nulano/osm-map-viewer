@@ -12,6 +12,11 @@ import PIL.ImageDraw
 print('testing', sys.argv[1:])
 
 
+def find_artist(arg):
+    package, _, clazz = arg.rpartition('.')
+    return getattr(__import__(package, globals=globals()), clazz)()
+
+
 with open('testdata/input.in', 'r') as f:
     test_cases = int(f.readline())
     for i in range(test_cases):
@@ -22,9 +27,7 @@ with open('testdata/input.in', 'r') as f:
         
         cam = BoxCamera(Rectangle(min_lat, min_lon, max_lat, max_lon), (width, height))
         zoom = int(f.readline())
-        artists = {}
-        for arg in sys.argv[1:]:
-            artists.update(getattr(__import__(arg, globals=globals()), '_all'))
+        artists = {arg: find_artist(arg) for arg in sys.argv[1:]}
         tree = ET.parse(osm_filename)
         helper = osm_helper.OsmHelper(tree)
         

@@ -21,7 +21,7 @@ class Renderer:
                 self.camera.center_at(lat, lon)
 
     def render(self):
-        im1 = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height))
+        im1 = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
         draw = PIL.ImageDraw.Draw(im1)
         for artist in artists:
             artist.draw(to_draw[name], helper, cam, draw)

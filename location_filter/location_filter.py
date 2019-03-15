@@ -4,15 +4,11 @@ from osm_helper import OsmHelper
 
 
 class Rectangle:
-    def __init__(self, min_lat, min_lon, max_lat, max_lon):
+    def __init__(self, min_lat: float, min_lon: float, max_lat: float, max_lon: float):
         self.min_lat = min_lat
         self.min_lon = min_lon
         self.max_lat = max_lat
-        self.max_lon = max_lon
-
-    def intersects(self, other):
-        return max(self.min_lat, other.min_lat) < min(self.max_lat, other.max_lat) \
-                and max(self.min_lon, other.min_lon) < min(self.max_lon, other.max_lon) 
+        self.max_lon = max_lon 
 
 
 class LocationFilter:
@@ -22,12 +18,14 @@ class LocationFilter:
         self.bounding_box = bounding_box
         self.draw_pairs = draw_pairs
         self.osm_helper = osm_helper
-    
+
+    # TODO close_enough
     def get_pairs(self, rectangle: Rectangle):
         out = []
         for el, artist in self.draw_pairs:
             for bb in artist.approx_location(el, self.osm_helper):
-                if rectangle.intersects(bb):
+                if max(rectangle.min_lat, bb.min_lat) < min(rectangle.max_lat, bb.max_lat) \
+                        and max(rectangle.min_lon, bb.min_lon) < min(rectangle.max_lon, bb.max_lon):
                     out.append((el, artist))
                     break
         return out

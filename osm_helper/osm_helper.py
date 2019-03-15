@@ -24,18 +24,19 @@ class OsmHelper:
             if way.tag == 'way':
                 self.ways[way.attrib['id']] = way
         self._cache_way_node_ids = {}
-        self._cache_multipolygon_to_polygons = {}
+        self._cache_multipolygon_to_wsps = {}
 
     # cached
     def way_node_ids(self, way: Element):
-        if way in self._cache_way_node_ids:
-            return self._cache_way_node_ids[way]
+        id = way.attrib['id']
+        if id in self._cache_way_node_ids:
+            return self._cache_way_node_ids[id]
         else:
             out = []
             for el in way:
                 if el.tag == 'nd':
                     out.append(el.attrib['ref'])
-            self._cache_way_node_ids[way] = out
+            self._cache_way_node_ids[id] = out
             return out
 
     def way_nodes_for_ids(self, way: list):
@@ -55,11 +56,8 @@ class OsmHelper:
     def way_coordinates(self, way: Element):
         return self.way_coordinates_for_nodes(self.way_nodes(way))
 
-    # cached
+    # TODO cache?
     def multipolygon_to_polygons(self, multipolygon: Element):
-        if multipolygon in self._cache_multipolygon_to_polygons:
-            return self._cache_multipolygon_to_polygons[multipolygon]
-
         ways = Queue()
         for el in multipolygon:
             if el.tag == 'member' and el.attrib['type'] == 'way':
@@ -77,13 +75,17 @@ class OsmHelper:
                 ways.put(way + ways_from_b.pop(b)[1:])
             else:
                 raise KeyError
-
-        self._cache_multipolygon_to_polygons[multipolygon] = out
         return out
 
     def multipolygon_to_wsps(self, multipolygon: Element):
-        try:
-            return geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
-        except KeyError as err:
-            print('multipolygon', multipolygon.attrib['id'], 'is missing a way:', str(err))
-            return []
+        id = multipolygon.attrib['id']
+        if id in self._cache_multipolygon_to_wsps:
+            return self._cache_multipolygon_to_wsps[id]
+        else:
+            out = []
+            try:
+                out = geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
+            except KeyError as err:
+                print('multipolygon', multipolygon.attrib['id'], 'is missing a way:', str(err))
+            self._cache_multipolygon_to_wsps[id] = out
+            return out

@@ -82,4 +82,8 @@ class OsmHelper:
         return out
 
     def multipolygon_to_wsps(self, multipolygon: Element):
-        return geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
+        try:
+            return geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
+        except KeyError as err:
+            print('multipolygon', multipolygon.attrib['id'], 'is missing a way:', str(err))
+            return []

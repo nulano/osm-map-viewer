@@ -3,7 +3,8 @@ from xml.etree.ElementTree import Element
 from PIL.ImageDraw import ImageDraw
 
 from artist_base import IsWay, TagMatches, ElementFilter, ArtistArea
-from osm_helper import OsmHelper, tag_dict
+from location_filter import Rectangle
+from osm_helper import OsmHelper
 
 
 class ArtistRoad:
@@ -27,10 +28,19 @@ class ArtistRoad:
                 line = [camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)]
                 image_draw.line(line, fill=self.color, width=self.width, joint='curve')
             else:
-                print('warn: invalid road tag type:', el.tag)
+                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        return []  # TODO
+        points = []
+        if element.tag == 'way':
+            points = osm_helper.way_coordinates(element)
+        else:
+            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        if len(points) == 0:
+            return []
+        from operator import itemgetter
+        return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                          max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
 class ArtistRoadArea(ArtistArea):

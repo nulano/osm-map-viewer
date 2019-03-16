@@ -31,7 +31,18 @@ class ArtistArea:
             image_draw.polygon([camera.gps_to_px(point) for point in poly], fill=self.fill, outline=self.outline)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        return []  # TODO
+        points = []
+        if element.tag == 'relation':
+            points = [pt for poly in osm_helper.multipolygon_to_wsps(element) for pt in poly]
+        elif element.tag == 'way':
+            points = osm_helper.way_coordinates(element)
+        else:
+            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        if len(points) == 0:
+            return []
+        from operator import itemgetter
+        return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                          max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
 class ElementFilterBase:

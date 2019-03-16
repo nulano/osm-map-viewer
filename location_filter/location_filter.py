@@ -8,7 +8,14 @@ class Rectangle:
         self.min_lat = min_lat
         self.min_lon = min_lon
         self.max_lat = max_lat
-        self.max_lon = max_lon 
+        self.max_lon = max_lon
+
+    def __repr__(self):
+        return 'Rectangle({}, {}, {}, {})'.format(repr(self.min_lat), repr(self.min_lon),
+                                                  repr(self.max_lat), repr(self.max_lon))
+
+    def __str__(self):
+        return '[{}, {}, {}, {}]'.format(str(self.min_lat), str(self.min_lon), str(self.max_lat), str(self.max_lon))
 
 
 class LocationFilter:

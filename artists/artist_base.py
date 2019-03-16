@@ -34,35 +34,77 @@ class ArtistArea:
         return []  # TODO
 
 
-class ElementFilter:
-    def __init__(self, func=lambda t, e, o: True):
-        self.func = func
-
+class ElementFilterBase:
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return self.func(tags, element, osm_helper)
+        raise NotImplementedError
 
     # convenience for testing
     def test(self, element: Element, osm_helper: OsmHelper):
         return self(tag_dict(element), element, osm_helper)
 
     def And(self, other):
-        return ElementFilter(lambda t, e, o: self(t, e, o) and other(t, e, o))
+        class AndFilter(ElementFilterBase):
+            def __init__(self, a, b):
+                self.a, self.b = a, b
+
+            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+                return self.a(tags, element, osm_helper) and self.b(tags, element, osm_helper)
+
+        return AndFilter(self, other)
 
     def Or(self, other):
-        return ElementFilter(lambda t, e, o: self(t, e, o) or other(t, e, o))
+        class OrFilter(ElementFilterBase):
+            def __init__(self, a, b):
+                self.a, self.b = a, b
+
+            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+                return self.a(tags, element, osm_helper) or self.b(tags, element, osm_helper)
+
+        return OrFilter(self, other)
 
     # convenience for +=
     def __add__(self, other): return self.And(other)
 
 
-IsPoint = ElementFilter(lambda t, e, o: e.tag == 'node')
-IsWay = ElementFilter(lambda t, e, o: e.tag == 'way' and e.attrib.get('area') != 'yes')
-IsArea = ElementFilter(lambda t, e, o: e.tag == 'way' or (e.tag == 'relation' and t.get('type') == 'multipolygon'))
+class ElementFilter(ElementFilterBase):
+    def __init__(self, func=lambda t, e, o: True):
+        self.func = func
+
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return self.func(tags, element, osm_helper)
 
 
-def TagMatches(tag, values):
-    return ElementFilter(lambda t, e, o: t.get(tag) in values)
+class _IsPoint(ElementFilterBase):
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return element.tag == 'node'
 
 
-def TagPresent(tag):
-    return ElementFilter(lambda t, e, o: tag in t)
+class _IsWay(ElementFilterBase):
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return element.tag == 'way' and element.attrib.get('area') != 'yes'
+
+
+class _IsArea(ElementFilterBase):
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return (element.tag == 'way') or (element.tag == 'relation' and tags.get('type') == 'multipolygon')
+
+
+IsPoint = _IsPoint()
+IsWay = _IsWay()
+IsArea = _IsArea()
+
+
+class TagMatches(ElementFilterBase):
+    def __init__(self, tag, values):
+        self.tag, self.values = tag, values
+
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return tags.get(self.tag) in self.values
+
+
+class TagPresent(ElementFilterBase):
+    def __init__(self, tag):
+        self.tag = tag
+
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return self.tag in tags

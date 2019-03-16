@@ -19,13 +19,14 @@ class LocationFilter:
         self.draw_pairs = draw_pairs
         self.osm_helper = osm_helper
 
-    # TODO close_enough
+    # TODO close_enough, camera
     def get_pairs(self, rectangle: Rectangle):
         out = []
         for el, artist in self.draw_pairs:
             for bb in artist.approx_location(el, self.osm_helper):
-                if max(rectangle.min_lat, bb.min_lat) < min(rectangle.max_lat, bb.max_lat) \
-                        and max(rectangle.min_lon, bb.min_lon) < min(rectangle.max_lon, bb.max_lon):
-                    out.append((el, artist))
+                if max(rectangle.min_lat, bb.min_lat) > min(rectangle.max_lat, bb.max_lat) \
+                        or max(rectangle.min_lon, bb.min_lon) > min(rectangle.max_lon, bb.max_lon):
                     break
+            else:
+                out.append((el, artist))
         return out

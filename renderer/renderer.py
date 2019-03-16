@@ -1,10 +1,14 @@
-from xml.etree.ElementTree import ElementTree
+from collections import defaultdict
+from xml.etree.ElementTree import ElementTree, Element
 
 import PIL.Image
 import PIL.ImageDraw
 
 from camera import Camera
+from location_filter import LocationFilter, Rectangle
 from osm_helper import OsmHelper
+
+from artists import get_artists
 
 
 class Renderer:
@@ -13,15 +17,31 @@ class Renderer:
         self.element_tree = element_tree
         self.osm_helper = OsmHelper(element_tree)
 
+        for element in element_tree.getroot():
+            if element.tag == 'bounds':
+                self.bounds = Rectangle(float(element.attrib['minlat']), float(element.attrib['minlon']),
+                                        float(element.attrib['maxlat']), float(element.attrib['maxlon']))
+                break
+        else:
+            raise AssertionError('no bounds tag in element_tree')
+
+        draw_pairs = []
+        for artist in get_artists():
+            for element in element_tree.getroot():
+                if artist.wants_element(element, osm_helper=self.osm_helper):
+                    draw_pairs += [(element, artist)]
+        self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
+
     def center_camera(self):
-        for el in self.element_tree:
-            if el.tag == 'bounds':
-                lat = ((el.attrib['minlat']) + (el.attrib['maxlat'])) / 2
-                lon = ((el.attrib['minlon']) + (el.attrib['maxlon'])) / 2
-                self.camera.center_at(lat, lon)
+        self.camera.center_at((self.bounds.min_lat + self.bounds.max_lat)/2,
+                              (self.bounds.min_lon + self.bounds.max_lon)/2)
 
     def render(self):
-        im1 = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
-        draw = PIL.ImageDraw.Draw(im1)
-        for artist in artists:
-            artist.draw(to_draw[name], helper, cam, draw)
+        image = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
+        draw = PIL.ImageDraw.Draw(image)
+        groups = defaultdict(list)
+        for element, artist in self.filter.get_pairs(self.bounds):
+            groups[artist] += [element]
+        for artist, elements in groups.items():
+            artist.draw(elements, self.osm_helper, self.camera, draw)
+        return image

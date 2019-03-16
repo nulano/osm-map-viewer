@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/camera" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/renderer" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/artists" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/gui" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.7 (baklazan_mapa)" jdkType="Python SDK" />

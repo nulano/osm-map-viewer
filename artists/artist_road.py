@@ -32,8 +32,11 @@ class ArtistRoad:
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         for el in elements:
-            line = [camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)]
-            image_draw.line(line, fill=self.color, width=self.width, joint='curve')
+            if el.tag == 'way':
+                line = [camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)]
+                image_draw.line(line, fill=self.color, width=self.width, joint='curve')
+            else:
+                print('warn: invalid road tag type:', el.tag)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         return []

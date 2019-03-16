@@ -47,12 +47,12 @@ class Camera:
     def px_to_gps(self, px_point: (int, int)):
         dist_px = np.array(px_point) - (self.dimensions / 2)
         dist_deg = dist_px @ self._px_to_deg_matrix()
-        return self.center + dist_deg
+        return tuple(self.center + dist_deg)
     
     def gps_to_px(self, gps_point: (float, float)):
         dist_deg = np.array(gps_point) - self.center
         dist_px = dist_deg @ np.linalg.inv(self._px_to_deg_matrix())
-        return (self.dimensions / 2) + dist_px
+        return tuple((self.dimensions / 2) + dist_px)
 
     def get_rect(self):
         a, b = self.px_to_gps((0, 0)), self.px_to_gps(self.dimensions)

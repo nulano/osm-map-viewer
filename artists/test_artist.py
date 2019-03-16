@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 
-from artist_test_camera import BoxCamera
+from test_artist_camera import BoxCamera
 from location_filter import Rectangle
 import xml.etree.ElementTree as ET
 import osm_helper

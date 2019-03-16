@@ -1,4 +1,4 @@
-from artist_base import ArtistArea, TagMatches, TagPresent
+from artists_util import ArtistArea, TagMatches, TagPresent
 
 
 class ArtistWater(ArtistArea):

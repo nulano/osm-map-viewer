@@ -10,7 +10,7 @@ class BoxCamera:
     
     def px_to_gps(self, px_point):
         x, y = px_point
-        lon = self.min_lon + x / px_width * self.lon_width
+        lon = self.min_lon + x / self.px_width * self.lon_width
         lat = self.max_lat - y / self.px_height * self.lat_height
         return lat, lon
     

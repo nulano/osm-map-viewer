@@ -1,4 +1,4 @@
-from artist_base import ArtistArea, TagMatches
+from artists_util import ArtistArea, TagMatches
 
 
 class ArtistPark(ArtistArea):

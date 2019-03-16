@@ -2,7 +2,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artist_base import IsWay, TagMatches, ElementFilter, ArtistArea
+from artists_util import IsWay, TagMatches, ElementFilter, ArtistArea
 from location_filter import Rectangle
 from osm_helper import OsmHelper
 

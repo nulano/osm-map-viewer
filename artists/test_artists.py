@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 
-from artist_test_camera import BoxCamera
+from test_artist_camera import BoxCamera
 from location_filter import Rectangle
 import xml.etree.ElementTree as ET
 import osm_helper
@@ -30,13 +30,12 @@ with open('testdata/input.in', 'r') as f:
         
         root = tree.getroot()
         to_draw = defaultdict(list)
-        skipped = []  # TODO print these
+        skipped = []  # TODO print these?
         for element in root:
             for name, artist in artists.items():
                 if artist.wants_element(element, helper):
                     if artist.draws_at_zoom(element, zoom, helper):
                         to_draw[name].append(element)
-                    break
             else:
                 skipped.append(element)
         

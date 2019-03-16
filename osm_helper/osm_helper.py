@@ -62,19 +62,37 @@ class OsmHelper:
         for el in multipolygon:
             if el.tag == 'member' and el.attrib['type'] == 'way':
                 ways.put(self.way_node_ids(self.ways[el.attrib['ref']]))
-        ways_from_a, ways_from_b = {}, {}
+        ways_a, ways_b = {}, {}
         out = []
         while not ways.empty():
             way = ways.get(block=False)
-            a, b = min(way[0], way[-1]), max(way[0], way[-1])
-            if a == b:
-                out.append(self.way_coordinates_for_ids(way))
-            elif a in ways_from_a:
-                ways.put(ways_from_a.pop(a)[::-1] + way[1:])
-            elif b in ways_from_b:
-                ways.put(way + ways_from_b.pop(b)[1:])
+            if way[0] == way[-1]:
+                out.append(self.way_coordinates_for_ids(way[:-1]))
             else:
-                raise KeyError
+                if way[-1] < way[0]:
+                    way.reverse()
+                a, b = way[0], way[-1]
+                if a in ways_b:
+                    other = ways_b.pop(a)
+                    ways_a.pop(other[0])
+                    ways.put(other + way[1:])
+                elif a in ways_a:
+                    other = ways_a.pop(a)
+                    ways_b.pop(other[-1])
+                    ways.put(other[::-1] + way[1:])
+                elif b in ways_a:
+                    other = ways_a.pop(b)
+                    ways_b.pop(other[-1])
+                    ways.put(way + other[1:])
+                elif b in ways_b:
+                    other = ways_b.pop(b)
+                    ways_a.pop(other[0])
+                    ways.put(way[:-1] + other[::-1])
+                else:
+                    ways_a[a] = way
+                    ways_b[b] = way
+        if len(ways_a) is not 0:
+            raise KeyError(str(len(ways_a)) + ' were not connected')
         return out
 
     def multipolygon_to_wsps(self, multipolygon: Element):
@@ -84,8 +102,13 @@ class OsmHelper:
         else:
             out = []
             try:
-                out = geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
-            except KeyError as err:
-                print('multipolygon', multipolygon.attrib['id'], 'is missing a way:', str(err))
+                type = tag_dict(multipolygon).get('type', None)
+                if type == 'multipolygon':
+                    out = geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
+                else:
+                    print('error: invalid multipolygon:', multipolygon.tag, multipolygon.attrib['id'], 'type:', type)
+            except KeyError:
+                from traceback import print_exc
+                print_exc(2)
             self._cache_multipolygon_to_wsps[id] = out
             return out

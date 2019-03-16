@@ -54,8 +54,8 @@ class Gui:
         self.root.config(menu=self.menu)
 
     def load_map(self):
-        def renderer_callback(now, max):
-            self.log('processing map: {}/{}'.format(now, max))
+        def renderer_callback(now, max, cur):
+            self.log('processing map: {}/{} (step {})'.format(now, max, cur))
 
         self.log('using map:', self.file)
         self.log('-- parsing map')

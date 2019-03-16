@@ -12,8 +12,8 @@ from artists import get_artists
 
 
 # fallback for incompatible gui implementations
-def nulano_gui_callback(now, max):
-    print('processing map: {}/{}'.format(now, max))
+def nulano_gui_callback(now, max, cur):
+    print('processing map: {}/{}, (step {})'.format(now, max, cur))
 
 
 class Renderer:
@@ -33,11 +33,11 @@ class Renderer:
         draw_pairs = []
         artists = get_artists()
         for i, artist in enumerate(artists):
-            nulano_gui_callback(i, len(artists))
+            nulano_gui_callback(i, len(artists), artist.__class__.__qualname__)
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
-        nulano_gui_callback(len(artists), len(artists))
+        nulano_gui_callback(len(artists), len(artists), 'filter')
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
 
     def center_camera(self):

@@ -45,6 +45,43 @@ class ArtistArea:
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
+class ArtistWay:
+    def __init__(self, fill='#fff', width=3, min_ppm=0):
+        self.fill = fill
+        self.width = width
+        self.min_ppm = min_ppm
+        self.filter = IsWay
+
+    def wants_element(self, element: Element, osm_helper: OsmHelper):
+        return self.filter.test(element, osm_helper)
+
+    def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
+        from camera import Camera  # FIXME yuck!
+        return Camera(zoom_level=zoom).px_per_meter() >= self.min_ppm
+
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
+        lines = []
+        for el in elements:
+            if el.tag == 'way':
+                lines.append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)])
+            else:
+                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
+        for line in lines:
+            image_draw.line(line, fill=self.fill, width=self.width, joint='curve')
+
+    def approx_location(self, element: Element, osm_helper: OsmHelper):
+        points = []
+        if element.tag == 'way':
+            points = osm_helper.way_coordinates(element)
+        else:
+            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        if len(points) == 0:
+            return []
+        from operator import itemgetter
+        return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                          max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
+
+
 class ElementFilterBase:
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
         raise NotImplementedError
@@ -72,6 +109,16 @@ class ElementFilterBase:
                 return self.a(tags, element, osm_helper) or self.b(tags, element, osm_helper)
 
         return OrFilter(self, other)
+
+    def Not(self):
+        class NotFilter(ElementFilterBase):
+            def __init__(self, wrap):
+                self.wrap = wrap
+
+            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+                return not self.wrap(tags, element, osm_helper)
+
+        return NotFilter(self)
 
     # convenience for +=
     def __add__(self, other): return self.And(other)

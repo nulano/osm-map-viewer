@@ -1,4 +1,4 @@
-from artists_util import ArtistArea, TagMatches, TagPresent
+from artists_util import ArtistArea, TagMatches, ArtistWay
 
 
 class ArtistWaterArea(ArtistArea):
@@ -9,4 +9,12 @@ class ArtistWaterArea(ArtistArea):
                    .Or(TagMatches('waterway', ('riverbank', )))
 
 
-_all = {'water': ArtistWaterArea()}
+class ArtistWaterWay(ArtistWay):
+    def __init__(self, types, width=5):
+        super().__init__(fill='#ade', width=width)
+        self.filter += TagMatches('waterway', types)
+
+
+_all = {'water': ArtistWaterArea(),
+        'water_river':  ArtistWaterWay(width=5, types=('river', )),
+        'water_stream': ArtistWaterWay(width=5, types=('stream', ))}

@@ -7,6 +7,7 @@ from location_filter import Rectangle
 from osm_helper import OsmHelper
 
 
+# TODO base on ArtistWay?
 class ArtistRoad:
     def __init__(self, types, color='#fff', width=3, min_ppm=0, bridge=False):
         self.color = color

@@ -27,9 +27,59 @@ class ArtistArea:
             elif el.tag == 'way':
                 polys.append(osm_helper.way_coordinates(el))
             else:
-                print('unknown type:', el.tag)
+                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
         for poly in polys:
             self.draw_poly([camera.gps_to_px(point) for point in poly], image_draw)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        return []
+        return []  # TODO
+
+
+class ElementFilter:
+
+    def __init__(self):
+        self.filters = []
+
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        try:
+            for f in self.filters:
+                if not f(tags, element, osm_helper):
+                    return False
+            else:
+                return True
+        except Exception:
+            from traceback import print_exc
+            print_exc(3)
+            return False
+
+    def IsPoint(self):
+        self.filters.append(lambda t, e, o: e.tag == 'node')
+        return self
+
+    def IsWay(self):
+        self.filters.append(lambda t, e, o: e.tag == 'way' and e.attrib.get('area') != 'yes')
+        return self
+
+    def IsArea(self):
+        def func(tags: dict, element: Element, osm_helper: OsmHelper):
+            if element.tag == 'way':
+                return True  # FIXME only sometimes
+            elif element.tag == 'relation':
+                return tags.get('type') == 'multipolygon'
+            else:
+                return False
+
+        self.filters.append(func)
+        return self
+
+    def Matches(self, func):
+        self.filters.append(func)
+        return self
+
+    def TagMatches(self, tag, values):
+        self.filters.append(lambda t, e, o: t.get(tag, None) in values)
+        return self
+
+    def HasTag(self, tag):
+        self.filters.append(lambda t, e, o: tag in t)
+        return self

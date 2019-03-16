@@ -5,14 +5,14 @@ from PIL.ImageDraw import ImageDraw
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
-from artist_base import ArtistArea
+from artist_base import ArtistArea, ElementFilter
 
 
 class ArtistBuilding:
     def __init__(self): pass
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
-        return tag_dict(element).get('building')
+        return ElementFilter().IsArea().HasTag('building')(element, osm_helper)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
         return True
@@ -26,7 +26,7 @@ class ArtistBuilding:
             elif el.tag == 'way':
                 polys.append(osm_helper.way_coordinates(el))
             else:
-                print('unknown type:', el.tag)
+                print('warn: unknown type:', el.tag, 'for ArtistBuilding')
             for poly in polys:
                 image_draw.polygon([camera.gps_to_px(point) for point in poly], fill='#ddc', outline='#ccb')
 

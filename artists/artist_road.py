@@ -25,12 +25,19 @@ class ArtistRoad:
         return Camera(zoom_level=zoom).px_per_meter() >= self.min_ppm
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
+        lines = []
         for el in elements:
             if el.tag == 'way':
-                line = [camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)]
-                image_draw.line(line, fill=self.color, width=self.width, joint='curve')
+                lines.append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)])
             else:
                 print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
+
+        if self.width >= 5 and self.bridge:
+            for line in lines:
+                image_draw.line(line, fill='#444', width=self.width + 2, joint='curve')
+
+        for line in lines:
+            image_draw.line(line, fill=self.color, width=self.width, joint='curve')
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         points = []

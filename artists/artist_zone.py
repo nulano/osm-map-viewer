@@ -6,7 +6,7 @@ class ArtistPark(ArtistArea):
         super().__init__()
 
     def wants_element_tags(self, tags: dict):
-        return tags.get('leisure') in ('park', )
+        return tags.get('leisure') in ('park',)
 
     def draw_poly(self, poly: list, image_draw):
         image_draw.polygon(poly, fill='#cfc')
@@ -17,7 +17,7 @@ class ArtistGarden(ArtistArea):
         super().__init__()
 
     def wants_element_tags(self, tags: dict):
-        return tags.get('leisure') == 'garden'
+        return tags.get('leisure') in ('garden',)
 
     def draw_poly(self, poly: list, image_draw):
         image_draw.polygon(poly, fill='#beb')
@@ -31,9 +31,9 @@ class ArtistSchool(ArtistArea):
         return tags.get('amenity') in ('college', 'kindergarten', 'school', 'university')
 
     def draw_poly(self, poly: list, image_draw):
-        image_draw.polygon(poly, fill='#fad')
+        image_draw.polygon(poly, fill='#fdf')
 
 
-_all = {'park': ArtistPark(),
-        'garden': ArtistGarden(),
-        'school': ArtistSchool()}
+_all = {'school': ArtistSchool(),
+        'park': ArtistPark(),
+        'garden': ArtistGarden()}

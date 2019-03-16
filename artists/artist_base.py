@@ -1,5 +1,7 @@
 from xml.etree.ElementTree import Element
 
+from PIL.ImageDraw import ImageDraw
+
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
@@ -7,7 +9,7 @@ from osm_helper import OsmHelper, tag_dict
 class ArtistArea:
     def __init__(self): pass
 
-    def draw_poly(self, poly: list, image_draw): pass
+    def draw_poly(self, poly: list, image_draw: ImageDraw): pass
 
     def wants_element_tags(self, tags: dict): return False
 
@@ -17,7 +19,7 @@ class ArtistArea:
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
         return True
 
-    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw):
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         polys = []
         for el in elements:
             if el.tag == 'relation':

@@ -35,17 +35,6 @@ class ArtistForest(ArtistArea):
     def draw_poly(self, poly: list, image_draw): image_draw.polygon(poly, fill='#ada')
 
 
-class ArtistWater(ArtistArea):
-    def __init__(self): super().__init__()
-
-    def wants_element_tags(self, tags: dict):
-        return tags.get('natural') in ('water', 'bay', 'spring', 'hot_spring', 'blowhole') \
-            or tags.get('landuse') in ('basin', 'reservoir') \
-            or tags.get('waterway')
-
-    def draw_poly(self, poly: list, image_draw): image_draw.polygon(poly, fill='#ade')
-
-
 class ArtistMountain(ArtistArea):
     def __init__(self): super().__init__()
 
@@ -58,5 +47,4 @@ class ArtistMountain(ArtistArea):
 _all = {'grass': ArtistGrass(),
         'orchard': ArtistOrchard(),
         'Forest': ArtistForest(),
-        'water': ArtistWater(),
         'mountain': ArtistMountain()}

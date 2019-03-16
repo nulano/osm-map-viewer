@@ -3,6 +3,15 @@ from xml.etree.ElementTree import Element
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 from PIL.ImageDraw import ImageDraw
+from artist_base import ArtistArea
+
+
+def _is_area(element: Element, tags: dict):
+    if element.tag == 'way':
+        return element.get('area') == 'yes'
+    elif element.tag == 'relation':
+        return element.get('type') == 'multipolygon'
+    return None
 
 
 class ArtistRoad:
@@ -14,7 +23,9 @@ class ArtistRoad:
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
         tags = tag_dict(element)
-        return tags.get('highway') in self.types and (('bridge' in tags) == self.bridge)
+        return not _is_area(element, tags) \
+            and tags.get('highway') in self.types \
+            and (('bridge' in tags) == self.bridge)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
         return True
@@ -22,13 +33,29 @@ class ArtistRoad:
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         for el in elements:
             line = [camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)]
-            image_draw.line(line, fill=self.color, width=self.width)
+            image_draw.line(line, fill=self.color, width=self.width, joint='curve')
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         return []
 
 
-_all = {}
+class ArtistRoadArea(ArtistArea):
+    def __init__(self, types, color, outline):
+        super().__init__()
+        self.types = types
+        self.color = color
+        self.outline = outline
+
+    def wants_element(self, element: Element, osm_helper: OsmHelper):
+        tags = tag_dict(element)
+        return _is_area(element, tags) \
+            and tags.get('highway') in self.types
+
+    def draw_poly(self, poly: list, image_draw: ImageDraw):
+        image_draw.polygon(poly, fill=self.color, outline=self.outline)
+
+
+_all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}
 
 
 def _add(road, link, bridge):

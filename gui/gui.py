@@ -1,5 +1,6 @@
 import argparse
 import tkinter as tk
+from tkinter import ttk
 from xml.etree import ElementTree
 import sys
 
@@ -54,8 +55,20 @@ class Gui:
         self.root.config(menu=self.menu)
 
     def load_map(self):
+        self.root.withdraw()
+
+        mb = tk.Toplevel()
+        progress = tk.DoubleVar()
+        pb = ttk.Progressbar(mb, variable=progress, max=1.0)
+        pb.grid(row=1, column=0)
+        mb.pack_slaves()
+
         def renderer_callback(now, max, cur):
             self.log('processing map: {}/{} (step {})'.format(now, max, cur))
+            progress.set(now / max)
+            mb.update()
+
+        renderer_callback(0, 1, 'parsing xml')
 
         self.log('using map:', self.file)
         self.log('-- parsing map')
@@ -65,7 +78,7 @@ class Gui:
         except FileNotFoundError:
             self.log('File {} does not exist.'.format(self.file), level=3)
             self.log(level=3)
-            self.log('Use \'{0} -f FILE\' to specify a map file or \'{0} -h\' to show help.'.format(sys.argv[0]), level=3)
+            self.log('Use "{0} -f FILE" to specify a map file or "{0} -h" to show help.'.format(sys.argv[0]), level=3)
             sys.exit(1)
 
         self.log('-- processing map')
@@ -80,6 +93,9 @@ class Gui:
         self.camera.zoom_level = self.def_zoom
 
         self.log('-- map loaded')
+
+        mb.destroy()
+        self.root.deiconify()
 
     def render(self):
         self.log('-- rendering...')

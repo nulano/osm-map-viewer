@@ -33,10 +33,14 @@ class Gui:
 
         self.panel = tk.Label(self.root)
         self.panel.pack(side='bottom', fill='both', expand='yes')
+        self.panel.bind('<ButtonRelease-2>', func=self.panel_center)
+        self.panel.bind('<ButtonRelease-1>', func=self.panel_zoom_in)
+        self.panel.bind('<ButtonRelease-3>', func=self.panel_zoom_out)
 
         self.menu = tk.Menu(self.root)
 
         self.menu_file = tk.Menu(self.menu, tearoff=0)
+        self.menu_file.add_command(label="About", command=self.menu_about)
         self.menu_file.add_command(label="Exit", command=self.root.quit)
         self.menu.add_cascade(label='File', menu=self.menu_file)
 
@@ -104,6 +108,22 @@ class Gui:
 
     def _center_px(self):
         return self.camera.px_width / 2, self.camera.px_height / 2
+
+    def panel_zoom_in(self, event):
+        self.camera.zoom_in((event.x, event.y))
+        self.render()
+
+    def panel_zoom_out(self, event):
+        self.camera.zoom_out((event.x, event.y))
+        self.render()
+
+    def panel_center(self, event):
+        point = self.camera.px_to_gps((event.x, event.y))
+        self.camera.center_at(point[0], point[1])
+        self.render()
+
+    def menu_about(self):
+        pass  # FIXME
 
     def menu_view_recenter(self):
         self.camera.center_at(self.def_center[0], self.def_center[1])

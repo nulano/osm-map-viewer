@@ -40,8 +40,9 @@ class Renderer:
         image = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
         draw = PIL.ImageDraw.Draw(image)
         groups = defaultdict(list)
-        for element, artist in self.filter.get_pairs(self.bounds):
-            groups[artist] += [element]
+        for element, artist in self.filter.get_pairs(self.camera.get_rect()):
+            if artist.draws_at_zoom(element, self.camera.zoom_level, self.osm_helper):
+                groups[artist] += [element]
         for artist, elements in groups.items():
             artist.draw(elements, self.osm_helper, self.camera, draw)
         return image

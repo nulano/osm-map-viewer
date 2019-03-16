@@ -12,21 +12,19 @@ class Rectangle:
 
 
 class LocationFilter:
-    def __init__(self, typical_query_size: float, bounding_box: Rectangle,
-                 draw_pairs: list, osm_helper: OsmHelper):
+    def __init__(self, typical_query_size: float, bounding_box: Rectangle, draw_pairs: list, osm_helper: OsmHelper):
         self.typical_query_size = typical_query_size
         self.bounding_box = bounding_box
-        self.draw_pairs = draw_pairs
-        self.osm_helper = osm_helper
+        self.draw_pairs = [(element, artist, artist.approx_location(element, osm_helper)) for element, artist in draw_pairs]
 
-    # TODO close_enough, camera
+    # TODO close_enough
     def get_pairs(self, rectangle: Rectangle):
         out = []
-        for el, artist in self.draw_pairs:
-            for bb in artist.approx_location(el, self.osm_helper):
+        for element, artist, approx_location in self.draw_pairs:
+            for bb in approx_location:
                 if max(rectangle.min_lat, bb.min_lat) > min(rectangle.max_lat, bb.max_lat) \
-                        or max(rectangle.min_lon, bb.min_lon) > min(rectangle.max_lon, bb.max_lon):
+                or max(rectangle.min_lon, bb.min_lon) > min(rectangle.max_lon, bb.max_lon):
                     break
             else:
-                out.append((el, artist))
+                out.append((element, artist))
         return out

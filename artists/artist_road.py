@@ -55,7 +55,7 @@ class ArtistRoad:
 class ArtistRoadArea(ArtistArea):
     def __init__(self, types, fill, outline):
         super().__init__(fill=fill, outline=outline)
-        self.filter += TagMatches('highway', types)
+        self.filter += TagMatches('highway', types).And(TagMatches('area', ('yes', )))
 
 
 _all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}

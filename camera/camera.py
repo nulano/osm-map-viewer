@@ -8,13 +8,13 @@ _TYPICAL_WINDOW_WIDTH = 800
 
 
 def get_typical_view_size(zoom_level: int):
-    width_m = _TYPICAL_WINDOW_WIDTH * 20 / (1.5 ** zoom_level)
+    width_m = _TYPICAL_WINDOW_WIDTH * 200 / (1.5 ** zoom_level)
     return 360 * (width_m / _EARTH_CIRCUMFERENCE_M)
 
 
 class Camera:
     def __init__(self, latitude: float = 0, longitude: float = 0,
-                 zoom_level: int = 0, dimensions: (int, int) = (10, 10)):
+                 zoom_level: int = 10, dimensions: (int, int) = (10, 10)):
         self.zoom_level = zoom_level
         self.dimensions = np.array(dimensions)
         self.center = np.array((latitude, longitude))
@@ -26,16 +26,16 @@ class Camera:
     def px_width(self, val: int): self.dimensions[0] = val
 
     @property
-    def px_height(self): return self.dimensions[0]
+    def px_height(self): return self.dimensions[1]
 
     @px_height.setter
-    def px_height(self, val: int): self.dimensions[0] = val
+    def px_height(self, val: int): self.dimensions[1] = val
 
     def center_at(self, new_lat: float, new_lon: float):
         self.center = np.array((new_lat, new_lon))
 
     def px_per_meter(self):
-        return 1.5 ** self.zoom_level / 20
+        return 1.5 ** self.zoom_level / 200
 
     def deg_per_px(self):
         return 360 / _EARTH_CIRCUMFERENCE_M / self.px_per_meter()
@@ -64,7 +64,7 @@ class Camera:
         return Rectangle(b[0], a[1], a[0], b[1])
 
     def move_point_to_pixel(self, gps_point: (float, float), pixel: (int, int)):
-        dist_deg, dist_deg_desired = self.px_to_gps(pixel) - self.center, gps_point - self.center
+        dist_deg, dist_deg_desired = self.px_to_gps(pixel) - self.center, np.array(gps_point) - self.center
         new_center = self.center - (dist_deg - dist_deg_desired)
         self.center_at(new_center[0], new_center[1])
 

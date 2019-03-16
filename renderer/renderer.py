@@ -1,5 +1,5 @@
 from collections import defaultdict
-from xml.etree.ElementTree import ElementTree, Element
+from xml.etree.ElementTree import ElementTree
 
 import PIL.Image
 import PIL.ImageDraw
@@ -9,6 +9,11 @@ from location_filter import LocationFilter, Rectangle
 from osm_helper import OsmHelper
 
 from artists import get_artists
+
+
+# fallback for incompatible gui implementations
+def nulano_gui_callback(now, max):
+    print('processing map: {}/{}'.format(now, max))
 
 
 class Renderer:
@@ -26,10 +31,13 @@ class Renderer:
             raise AssertionError('no bounds tag in element_tree')
 
         draw_pairs = []
-        for artist in get_artists():
+        artists = get_artists()
+        for i, artist in enumerate(artists):
+            nulano_gui_callback(i, len(artists))
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
+        nulano_gui_callback(len(artists), len(artists))
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
 
     def center_camera(self):

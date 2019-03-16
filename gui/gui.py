@@ -4,20 +4,23 @@ from xml.etree import ElementTree
 
 from PIL import ImageTk
 
-from camera import Camera
-from renderer import Renderer
+import camera
+import renderer
+import osm_helper
 
 
 class Gui:
     def __init__(self, file, loglevel, dimensions, center=None, zoom=None):
         self.file = file
         self.loglevel = loglevel
-        self.camera = Camera(dimensions=dimensions)
+        self.camera = camera.Camera(dimensions=dimensions)
         self.def_zoom = zoom if zoom is not None else self.camera.zoom_level
         self.def_center = center
         self.element_tree = None
         self.renderer = None
         self._raw_image, self._image = None, None
+
+        osm_helper.nulano_log = self.log
 
         # Create GUI:
 
@@ -46,13 +49,17 @@ class Gui:
         self.root.config(menu=self.menu)
 
     def load_map(self):
+        def renderer_callback(now, max):
+            self.log('processing map: {}/{}'.format(now, max))
+
         self.log('-- parsing map')
 
         self.element_tree = ElementTree.parse(self.file)
 
         self.log('-- processing map')
 
-        self.renderer = Renderer(self.camera, self.element_tree)
+        renderer.nulano_gui_callback = renderer_callback
+        self.renderer = renderer.Renderer(self.camera, self.element_tree)
         if self.def_center is None:
             self.renderer.center_camera()
             self.def_center = self.camera.px_to_gps(self._center_px())

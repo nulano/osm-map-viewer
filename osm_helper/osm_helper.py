@@ -4,6 +4,11 @@ from xml.etree.ElementTree import ElementTree, Element
 import geometry
 
 
+# fallback for incompatible gui implementations
+def nulano_log(*msg, level=0):
+    print(*msg)
+
+
 def tag_dict(element: Element):
     out = {}
     for el in element:
@@ -106,9 +111,11 @@ class OsmHelper:
                 if type == 'multipolygon':
                     out = geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
                 else:
-                    print('error: invalid multipolygon:', multipolygon.tag, multipolygon.attrib['id'], 'type:', type)
+                    nulano_log('invalid multipolygon: {}[{}].type={}'
+                               .format(multipolygon.tag, multipolygon.attrib['id'], type), level=2)
             except KeyError:
-                from traceback import print_exc
-                print_exc(2)
+                from traceback import format_exc
+                for line in format_exc(limit=2).splitlines():
+                    nulano_log(line, level=1)
             self._cache_multipolygon_to_wsps[id] = out
             return out

@@ -37,9 +37,7 @@ with open('testdata/input.in', 'r') as f:
         for element in root:
             for name, artist in artists.items():
                 if artist.wants_element(element, helper):
-                    if artist.draws_at_zoom(element, zoom, helper):
-                        to_draw[name].append(element)
-                    break
+                    to_draw[name].append(element)
             else:
                 skipped.append(element)
         

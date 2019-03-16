@@ -1,6 +1,7 @@
 import argparse
 import tkinter as tk
 from xml.etree import ElementTree
+import sys
 
 from PIL import ImageTk
 
@@ -52,9 +53,16 @@ class Gui:
         def renderer_callback(now, max):
             self.log('processing map: {}/{}'.format(now, max))
 
+        self.log('using map:', self.file)
         self.log('-- parsing map')
 
-        self.element_tree = ElementTree.parse(self.file)
+        try:
+            self.element_tree = ElementTree.parse(self.file)
+        except FileNotFoundError:
+            self.log('File {} does not exist.'.format(self.file), level=3)
+            self.log(level=3)
+            self.log('Use \'{0} -f FILE\' to specify a map file or \'{0} -h\' to show help.'.format(sys.argv[0]), level=3)
+            sys.exit(1)
 
         self.log('-- processing map')
 
@@ -90,9 +98,9 @@ class Gui:
         self.render()
         self.root.mainloop()
 
-    def log(self, *msg, level=0):
+    def log(self, *msg, level=0, **kwargs):
         if level >= self.loglevel:
-            print(['[info]', '[warn]', '[error]', '[critical]'][level], *msg)
+            print(['[info]', '[warn]', '[error]', '[critical]'][level], *msg, **kwargs)
 
     def _center_px(self):
         return self.camera.px_width / 2, self.camera.px_height / 2

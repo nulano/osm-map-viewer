@@ -8,9 +8,10 @@ from osm_helper import OsmHelper
 
 
 class ArtistRoad:
-    def __init__(self, types, color='#fff', width=3, bridge=False):
+    def __init__(self, types, color='#fff', width=3, min_ppm=0, bridge=False):
         self.color = color
         self.width = width
+        self.min_ppm = min_ppm
         self.bridge = bridge
         self.filter = IsWay\
             .And(TagMatches('highway', types))\
@@ -20,7 +21,8 @@ class ArtistRoad:
         return self.filter.test(element, osm_helper)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return True  # TODO
+        from camera import Camera  # FIXME yuck!
+        return Camera(zoom_level=zoom).px_per_meter() >= self.min_ppm
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         for el in elements:
@@ -53,7 +55,7 @@ _all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}
 
 
 def _add(road, link, bridge):
-    name, color, width, link_allow, types = road
+    name, color, width, min_ppm, link_allow, types = road
     name = 'road_' + name
 
     if bridge:
@@ -65,21 +67,21 @@ def _add(road, link, bridge):
         name += '_link'
         types = tuple(tp + '_link' for tp in types)
 
-    _all[name] = ArtistRoad(types, color, width, bridge)
+    _all[name] = ArtistRoad(types, color, width, min_ppm, bridge)
 
 
 _types = [
-    ('ped_small', '#aaa', 1, False, ('footway', 'steps', 'path')),
-    ('ped_large', '#aaa', 2, False, ('pedestrian',)),
-    ('unknown',   '#888', 2, False, ('road',)),
-    ('tiny',      '#fff', 2, False, ('service',)),
-    ('ped_zone',  '#ddd', 3, False, ('living_street',)),
-    ('small',     '#fff', 3, False, ('residential', 'unclassified')),
-    ('normal',    '#fff', 5, True,  ('tertiary',)),
-    ('main',      '#fea', 5, True,  ('secondary',)),
-    ('primary',   '#fda', 5, True,  ('primary',)),
-    ('highway',   '#d60', 8, True,  ('trunk',)),
-    ('motorway',  '#fa0', 8, True,  ('motorway',))
+    ('ped_small', '#aaa', 1, 0.200, False, ('footway', 'steps', 'path')),
+    ('ped_large', '#aaa', 2, 0.200, False, ('pedestrian',)),
+    ('unknown',   '#888', 2, 0.150, False, ('road',)),
+    ('tiny',      '#fff', 2, 0.150, False, ('service',)),
+    ('ped_zone',  '#ddd', 3, 0.150, False, ('living_street',)),
+    ('small',     '#fff', 3, 0.100, False, ('residential', 'unclassified')),
+    ('normal',    '#fff', 5, 0.050, True,  ('tertiary',)),
+    ('main',      '#fea', 5, 0.010, True,  ('secondary',)),
+    ('primary',   '#fda', 5, 0.000, True,  ('primary',)),
+    ('highway',   '#d60', 8, 0.000, True,  ('trunk',)),
+    ('motorway',  '#fa0', 8, 0.000, True,  ('motorway',))
 ]
 
 

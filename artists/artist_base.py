@@ -7,17 +7,16 @@ from osm_helper import OsmHelper, tag_dict
 
 
 class ArtistArea:
-    def __init__(self): pass
-
-    def draw_poly(self, poly: list, image_draw: ImageDraw): pass
-
-    def wants_element_tags(self, tags: dict): return False
+    def __init__(self, fill='#fff', outline=None):
+        self.fill = fill
+        self.outline = outline
+        self.filter = IsArea
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
-        return self.wants_element_tags(tag_dict(element))
+        return self.filter.test(element, osm_helper)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return True
+        return True  # TODO
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         polys = []
@@ -29,57 +28,41 @@ class ArtistArea:
             else:
                 print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
         for poly in polys:
-            self.draw_poly([camera.gps_to_px(point) for point in poly], image_draw)
+            image_draw.polygon([camera.gps_to_px(point) for point in poly], fill=self.fill, outline=self.outline)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         return []  # TODO
 
 
 class ElementFilter:
-
-    def __init__(self):
-        self.filters = []
+    def __init__(self, func=lambda t, e, o: True):
+        self.func = func
 
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        try:
-            for f in self.filters:
-                if not f(tags, element, osm_helper):
-                    return False
-            else:
-                return True
-        except Exception:
-            from traceback import print_exc
-            print_exc(3)
-            return False
+        return self.func(tags, element, osm_helper)
 
-    def IsPoint(self):
-        self.filters.append(lambda t, e, o: e.tag == 'node')
-        return self
+    # convenience for testing
+    def test(self, element: Element, osm_helper: OsmHelper):
+        return self(tag_dict(element), element, osm_helper)
 
-    def IsWay(self):
-        self.filters.append(lambda t, e, o: e.tag == 'way' and e.attrib.get('area') != 'yes')
-        return self
+    def And(self, other):
+        return ElementFilter(lambda t, e, o: self(t, e, o) and other(t, e, o))
 
-    def IsArea(self):
-        def func(tags: dict, element: Element, osm_helper: OsmHelper):
-            if element.tag == 'way':
-                return True  # FIXME only sometimes
-            elif element.tag == 'relation':
-                return tags.get('type') == 'multipolygon'
-            else:
-                return False
+    def Or(self, other):
+        return ElementFilter(lambda t, e, o: self(t, e, o) or other(t, e, o))
 
-        self.filters.append(func)
-        return self
+    # convenience for +=
+    def __add__(self, other): return self.And(other)
 
-    def Matches(self, func):
-        self.filters.append(func)
-        return self
 
-    def TagMatches(self, tag, values):
-        self.filters.append(lambda t, e, o: t.get(tag, None) in values)
-        return self
+IsPoint = ElementFilter(lambda t, e, o: e.tag == 'node')
+IsWay = ElementFilter(lambda t, e, o: e.tag == 'way' and e.attrib.get('area') != 'yes')
+IsArea = ElementFilter(lambda t, e, o: e.tag == 'way' or (e.tag == 'relation' and t.get('type') == 'multipolygon'))
 
-    def HasTag(self, tag):
-        self.filters.append(lambda t, e, o: tag in t)
-        return self
+
+def TagMatches(tag, values):
+    return ElementFilter(lambda t, e, o: t.get(tag) in values)
+
+
+def TagPresent(tag):
+    return ElementFilter(lambda t, e, o: tag in t)

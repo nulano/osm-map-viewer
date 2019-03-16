@@ -1,37 +1,22 @@
-from artist_base import ArtistArea
+from artist_base import ArtistArea, TagMatches
 
 
 class ArtistPark(ArtistArea):
     def __init__(self):
-        super().__init__()
-
-    def wants_element_tags(self, tags: dict):
-        return tags.get('leisure') in ('park',)
-
-    def draw_poly(self, poly: list, image_draw):
-        image_draw.polygon(poly, fill='#cfc')
+        super().__init__(fill='#cfc')
+        self.filter += TagMatches('leisure', ('park', ))
 
 
 class ArtistGarden(ArtistArea):
     def __init__(self):
-        super().__init__()
-
-    def wants_element_tags(self, tags: dict):
-        return tags.get('leisure') in ('garden',)
-
-    def draw_poly(self, poly: list, image_draw):
-        image_draw.polygon(poly, fill='#beb')
+        super().__init__(fill='#beb')
+        self.filter += TagMatches('leisure', ('garden', ))
 
 
 class ArtistSchool(ArtistArea):
     def __init__(self):
-        super().__init__()
-
-    def wants_element_tags(self, tags: dict):
-        return tags.get('amenity') in ('college', 'kindergarten', 'school', 'university')
-
-    def draw_poly(self, poly: list, image_draw):
-        image_draw.polygon(poly, fill='#fdf')
+        super().__init__(fill='#fdf')
+        self.filter += TagMatches('amenity', ('college', 'kindergarten', 'school', 'university'))
 
 
 _all = {'school': ArtistSchool(),

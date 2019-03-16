@@ -1,34 +1,25 @@
 from xml.etree.ElementTree import Element
 
-from location_filter import Rectangle
-from osm_helper import OsmHelper, tag_dict
 from PIL.ImageDraw import ImageDraw
-from artist_base import ArtistArea
 
-
-def _is_area(element: Element, tags: dict):
-    if element.tag == 'way':
-        return element.get('area') == 'yes'
-    elif element.tag == 'relation':
-        return element.get('type') == 'multipolygon'
-    return None
+from artist_base import IsWay, TagMatches, ElementFilter, ArtistArea
+from osm_helper import OsmHelper, tag_dict
 
 
 class ArtistRoad:
     def __init__(self, types, color='#fff', width=3, bridge=False):
-        self.types = types
         self.color = color
         self.width = width
         self.bridge = bridge
+        self.filter = IsWay\
+            .And(TagMatches('highway', types))\
+            .And(ElementFilter(lambda t, e, o: bridge == ('bridge' in t)))
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
-        tags = tag_dict(element)
-        return not _is_area(element, tags) \
-            and tags.get('highway') in self.types \
-            and (('bridge' in tags) == self.bridge)
+        return self.filter.test(element, osm_helper)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return True
+        return True  # TODO
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         for el in elements:
@@ -39,23 +30,13 @@ class ArtistRoad:
                 print('warn: invalid road tag type:', el.tag)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        return []
+        return []  # TODO
 
 
 class ArtistRoadArea(ArtistArea):
-    def __init__(self, types, color, outline):
-        super().__init__()
-        self.types = types
-        self.color = color
-        self.outline = outline
-
-    def wants_element(self, element: Element, osm_helper: OsmHelper):
-        tags = tag_dict(element)
-        return _is_area(element, tags) \
-            and tags.get('highway') in self.types
-
-    def draw_poly(self, poly: list, image_draw: ImageDraw):
-        image_draw.polygon(poly, fill=self.color, outline=self.outline)
+    def __init__(self, types, fill, outline):
+        super().__init__(fill=fill, outline=outline)
+        self.filter += TagMatches('highway', types)
 
 
 _all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}

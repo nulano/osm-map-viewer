@@ -1,8 +1,6 @@
 
 files = [
     'artist_land',
-    'artist_zone',
-    'artist_water',
     'artist_property',
     'artist_road'
 ]

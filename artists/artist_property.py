@@ -9,7 +9,7 @@ class ArtistBuilding(ArtistArea):
 
 class ArtistSportArea(ArtistArea):
     def __init__(self):
-        super().__init__(fill='#ef9', outline='#de8')
+        super().__init__(fill='#df8', outline='#de8')
         self.filter += TagMatches('leisure', ('pitch', 'track'))
 
 

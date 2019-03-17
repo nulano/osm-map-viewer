@@ -189,7 +189,7 @@ class Gui:
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description='OSM Map viewer GUI made by Nulano (2019)')
-    arg_parser.add_argument('-f', '--map', default='map.osm', help='the OpenStreetMap xml file to use', dest='file')
+    arg_parser.add_argument('-f', '--map', default='maps/bratislava.osm', help='the OpenStreetMap xml file to use', dest='file')
     arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
     arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')
     arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('X', 'Y'))

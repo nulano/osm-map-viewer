@@ -16,7 +16,8 @@ class ArtistRoad:
         self.bridge = bridge
         self.filter = IsWay\
             .And(TagMatches(tag, types))\
-            .And(ElementFilter(lambda t, e, o: bridge == ('bridge' in t)))
+            .And(ElementFilter(lambda t, e, o: bridge == ('bridge' in t)))\
+            .And(TagMatches('tunnel', ('yes',)).Not())
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
         return self.filter.test(element, osm_helper)
@@ -88,7 +89,7 @@ _types = [
     ('normal',    '#fff', 5, 0.050, True,  'highway', ('tertiary',)),
     ('main',      '#fea', 5, 0.010, True,  'highway', ('secondary',)),
     ('tram',      '#000', 1, 0.200, False, 'railway', ('tram',)),
-    ('rail',      '#000', 1, 0.000, False, 'railway', ('rail', 'narrow_gauge')),
+    ('rail',      '#000', 1, 0.000, False, 'railway', ('rail', 'narrow_gauge', 'turntable')),
     ('primary',   '#fda', 5, 0.000, True,  'highway', ('primary',)),
     ('highway',   '#d60', 8, 0.000, True,  'highway', ('trunk',)),
     ('motorway',  '#fa0', 8, 0.000, True,  'highway', ('motorway',))

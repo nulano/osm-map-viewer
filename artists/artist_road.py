@@ -9,13 +9,13 @@ from osm_helper import OsmHelper
 
 # TODO base on ArtistWay?
 class ArtistRoad:
-    def __init__(self, types, color='#fff', width=3, min_ppm=0, bridge=False):
+    def __init__(self, tag, types, color='#fff', width=3, min_ppm=0, bridge=False):
         self.color = color
         self.width = width
         self.min_ppm = min_ppm
         self.bridge = bridge
         self.filter = IsWay\
-            .And(TagMatches('highway', types))\
+            .And(TagMatches(tag, types))\
             .And(ElementFilter(lambda t, e, o: bridge == ('bridge' in t)))
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
@@ -35,7 +35,7 @@ class ArtistRoad:
 
         if self.width >= 5 and self.bridge:
             for line in lines:
-                image_draw.line(line, fill='#444', width=self.width + 2, joint='curve')
+                image_draw.line(line, fill='#666', width=self.width + 2, joint='curve')
 
         for line in lines:
             image_draw.line(line, fill=self.color, width=self.width, joint='curve')
@@ -63,7 +63,7 @@ _all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}
 
 
 def _add(road, link, bridge):
-    name, color, width, min_ppm, link_allow, types = road
+    name, color, width, min_ppm, link_allow, tag, types = road
     name = 'road_' + name
 
     if bridge:
@@ -75,21 +75,23 @@ def _add(road, link, bridge):
         name += '_link'
         types = tuple(tp + '_link' for tp in types)
 
-    _all[name] = ArtistRoad(types, color, width, min_ppm, bridge)
+    _all[name] = ArtistRoad(tag, types, color, width, min_ppm, bridge)
 
 
 _types = [
-    ('ped_small', '#aaa', 1, 0.200, False, ('footway', 'steps', 'path')),
-    ('ped_large', '#aaa', 2, 0.200, False, ('pedestrian',)),
-    ('unknown',   '#888', 2, 0.150, False, ('road',)),
-    ('tiny',      '#fff', 2, 0.150, False, ('service',)),
-    ('ped_zone',  '#ddd', 3, 0.150, False, ('living_street',)),
-    ('small',     '#fff', 3, 0.100, False, ('residential', 'unclassified')),
-    ('normal',    '#fff', 5, 0.050, True,  ('tertiary',)),
-    ('main',      '#fea', 5, 0.010, True,  ('secondary',)),
-    ('primary',   '#fda', 5, 0.000, True,  ('primary',)),
-    ('highway',   '#d60', 8, 0.000, True,  ('trunk',)),
-    ('motorway',  '#fa0', 8, 0.000, True,  ('motorway',))
+    ('ped_small', '#aaa', 1, 0.200, False, 'highway', ('footway', 'steps', 'path')),
+    ('ped_large', '#aaa', 2, 0.200, False, 'highway', ('pedestrian',)),
+    ('unknown',   '#888', 2, 0.150, False, 'highway', ('road',)),
+    ('tiny',      '#fff', 2, 0.150, False, 'highway', ('service',)),
+    ('ped_zone',  '#ddd', 3, 0.150, False, 'highway', ('living_street',)),
+    ('small',     '#fff', 3, 0.100, False, 'highway', ('residential', 'unclassified')),
+    ('normal',    '#fff', 5, 0.050, True,  'highway', ('tertiary',)),
+    ('main',      '#fea', 5, 0.010, True,  'highway', ('secondary',)),
+    ('tram',      '#000', 1, 0.200, False, 'railway', ('tram',)),
+    ('rail',      '#000', 1, 0.000, False, 'railway', ('rail', 'narrow_gauge')),
+    ('primary',   '#fda', 5, 0.000, True,  'highway', ('primary',)),
+    ('highway',   '#d60', 8, 0.000, True,  'highway', ('trunk',)),
+    ('motorway',  '#fa0', 8, 0.000, True,  'highway', ('motorway',))
 ]
 
 

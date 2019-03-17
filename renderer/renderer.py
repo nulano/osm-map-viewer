@@ -37,7 +37,7 @@ class Renderer:
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
-        nulano_gui_callback(len(artists), len(artists), 'filter')
+        nulano_gui_callback(len(artists), len(artists), 'location_filter')
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
 
     def center_camera(self):

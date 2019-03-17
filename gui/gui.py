@@ -29,14 +29,20 @@ class Gui:
         self.root = tk.Tk()
         self.root.geometry('x'.join(map(str, dimensions)))
 
-        self.status = tk.Label(self.root, bd=1, relief='sunken', anchor='w')
-        self.status.pack(side='bottom', fill='x')
-
         self.panel = tk.Label(self.root)
-        self.panel.pack(side='bottom', fill='both', expand='yes')
         self.panel.bind('<ButtonRelease-2>', func=self.panel_center)
         self.panel.bind('<ButtonRelease-1>', func=self.panel_zoom_in)
         self.panel.bind('<ButtonRelease-3>', func=self.panel_zoom_out)
+        self.panel.grid(row=0, column=0, columnspan=2, sticky='nesw')
+        self.root.rowconfigure(index=0, weight=1)
+
+        self.status = tk.Label(self.root, bd=1, relief='sunken', anchor='w')
+        self.status.grid(row=1, column=0, sticky='nesw')
+        self.root.columnconfigure(index=0, weight=1)
+
+        self.progress = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress, max=1.0)
+        self.progress_bar.grid(row=1, column=1, sticky='nesw')
 
         self.menu = tk.Menu(self.root)
 
@@ -61,31 +67,16 @@ class Gui:
         self.root.config(menu=self.menu)
 
     def load_map(self):
-        self.root.withdraw()
-        mb = tk.Toplevel()
-        progress = tk.DoubleVar()
-        mb_cur = tk.Label(mb)
-        mb_cur.grid(row=0, column=0, sticky='sw')
-        mb_step = tk.Label(mb)
-        mb_step.grid(row=0, column=2, sticky='se')
-        pb = ttk.Progressbar(mb, variable=progress, max=1.0)
-        pb.grid(row=1, column=0, columnspan=3, sticky='swe')
-        mb.columnconfigure(1, weight=1)
-        mb.rowconfigure(0, weight=1)
-        mb.geometry('250x50')
-        mb.resizable(False, False)
 
         def renderer_callback(now, max, cur):
-            self.log('processing map: {}/{} (step {})'.format(now, max, cur))
-            mb_cur.config(text=cur)
-            mb_step.config(text='{}/{}'.format(now, max))
-            progress.set(now / max)
-            mb.update()
-
-        renderer_callback(0, 1, 'parsing xml')
+            self.log('processing map: {}/{} ({})'.format(now, max, cur))
+            self.status.config(text='loading map: {} ({}/{})'.format(cur, now, max))
+            self.progress.set(now / max)
+            self.root.update()
 
         self.log('using map:', self.file)
         self.log('-- parsing map')
+        renderer_callback(0, 1, 'parsing xml')
 
         try:
             self.element_tree = ElementTree.parse(self.file)
@@ -108,24 +99,22 @@ class Gui:
 
         self.log('-- map loaded')
 
-        mb.destroy()
-        self.root.deiconify()
-
     def render(self):
         self.log('-- rendering...')
+        center_deg = self.camera.px_to_gps(self._center_px())
+        self.status.config(text='Center: (lat={}, lon={}), Zoom: {}, px/m={}'
+                           .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
+        self.progress.set(0)
+        self.root.update()
 
         self.camera.px_width, self.camera.px_height = self.panel.winfo_width(), self.panel.winfo_height()
         self._raw_image = self.renderer.render()
         self._image = ImageTk.PhotoImage(self._raw_image)
         self.panel.configure(image=self._image)
 
+        self.progress.set(1)
+        self.root.update()
         self.log('-- rendering done')
-        self.update_status()
-
-    def update_status(self):
-        center_deg = self.camera.px_to_gps(self._center_px())
-        self.status.config(text='Center: (lat={}, lon={}), Zoom: {}, px/m={}'
-                           .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
 
     def start(self):
         self.load_map()

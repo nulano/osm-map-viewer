@@ -12,8 +12,8 @@ from artists import get_artists
 
 
 # fallback for incompatible gui implementations
-def nulano_gui_callback(now: str, cur: int, max: int):
-    print('processing map: {}/{}, (step {})'.format(cur, max, now))
+def nulano_gui_callback(group: str = 'info', status: str = 'unknown', current: int = 0, maximum: int = 0):
+    print('{}: {}/{}, ({})'.format(group, current, maximum, status))
 
 
 class Renderer:
@@ -33,11 +33,11 @@ class Renderer:
         draw_pairs = []
         artists = get_artists()
         for i, artist in enumerate(artists):
-            nulano_gui_callback(artist.__class__.__qualname__, i, len(artists))
+            nulano_gui_callback(group='loading map', status=artist.__class__.__qualname__, current=i, maximum=len(artists))
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
-        nulano_gui_callback('location_filter', len(artists), len(artists))
+        nulano_gui_callback(status='initializing location_filter', current=len(artists))
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
 
     def center_camera(self):
@@ -51,6 +51,7 @@ class Renderer:
         for element, artist in self.filter.get_pairs(self.camera.get_rect()):
             if artist.draws_at_zoom(element, self.camera.zoom_level, self.osm_helper):
                 groups[artist] += [element]
-        for artist, elements in groups.items():
+        for i, (artist, elements) in enumerate(groups.items()):
+            nulano_gui_callback(group='rendering', status=artist.__class__.__qualname__, current=i, maximum=len(groups))
             artist.draw(elements, self.osm_helper, self.camera, draw)
         return image

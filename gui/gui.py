@@ -1,7 +1,6 @@
 import argparse
 import tkinter as tk
 from collections import namedtuple
-from functools import partial
 from queue import Queue
 from threading import Thread
 from tkinter import ttk, messagebox
@@ -9,6 +8,7 @@ from xml.etree import ElementTree
 import sys
 
 from PIL import ImageTk
+import numpy as np
 
 import camera
 import renderer
@@ -28,20 +28,31 @@ class Gui:
     def __init__(self, file, dimensions, center=None, zoom=None):
         self.worker = GuiWorker()
         self.worker.task_load_map(file)
-        # TODO center, zoom, ...
+        if center is not None:
+            self.worker.task_center_gps(center, setdefault=True)
+        if zoom is not None:
+            self.worker.task_zoom_set(zoom, setdefault=True)
 
+        self.running = False
         self._raw_image, self._image = None, None
 
         self.root = tk.Tk()
         self.root.geometry('x'.join(map(str, dimensions)))
-        # FIXME self.root.protocol("WM_DELETE_WINDOW", lambda: sys.exit(0))
+        self.root.bind('<Destroy>', func=lambda e: self.exit() if e.widget == self.root else None)
 
         self.panel = tk.Label(self.root)
-        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.worker.task_center(e.x, e.y))
-        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.worker.task_zoom_in(e.x, e.y))
-        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.worker.task_zoom_out(e.x, e.y))
+        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.worker.task_center((e.x, e.y)))
+        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.worker.task_zoom_in((e.x, e.y)))
+        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.worker.task_zoom_out((e.x, e.y)))
+        self.panel.bind('<Configure>', func=lambda e: self.worker.task_resize(e.width, e.height))
         self.panel.grid(row=0, column=0, columnspan=2, sticky='nesw')
         self.root.rowconfigure(index=0, weight=1)
+        self.root.bind('<p>', func=lambda e: self.worker.task_zoom_in(self.size / 2))
+        self.root.bind('<o>', func=lambda e: self.worker.task_zoom_out(self.size / 2))
+        self.root.bind('<Left>', func=lambda e: self.worker.task_center(self.size * (0.3, 0.5)))
+        self.root.bind('<Right>', func=lambda e: self.worker.task_center(self.size * (0.7, 0.5)))
+        self.root.bind('<Up>', func=lambda e: self.worker.task_center(self.size * (0.5, 0.3)))
+        self.root.bind('<Down>', func=lambda e: self.worker.task_center(self.size * (0.5, 0.7)))
 
         self.status = tk.Label(self.root, bd=1, relief='sunken', anchor='w')
         self.status.grid(row=1, column=0, sticky='nesw')
@@ -54,14 +65,14 @@ class Gui:
         self.menu = tk.Menu(self.root)
 
         self.menu_file = tk.Menu(self.menu, tearoff=0)
-        self.menu_file.add_command(label="Exit", command=self.root.quit)
+        self.menu_file.add_command(label="Exit", command=self.root.destroy)
         self.menu.add_cascade(label='File', menu=self.menu_file)
 
         self.menu_view = tk.Menu(self.menu, tearoff=0)
-        # self.menu_view.add_command(label="Recenter", command=self.menu_view_recenter)
-        # self.menu_view.add_command(label="Reset Zoom", command=self.menu_view_zoom_reset)
-        # self.menu_view.add_command(label="Zoom In", command=self.menu_view_zoom_in)
-        # self.menu_view.add_command(label="Zoom Out", command=self.menu_view_zoom_out)
+        self.menu_view.add_command(label="Recenter", command=self.worker.task_center_restore)
+        self.menu_view.add_command(label="Reset Zoom", command=self.worker.task_zoom_restore)
+        self.menu_view.add_command(label="Zoom In", command=lambda: self.worker.task_zoom_in(self.size / 2))
+        self.menu_view.add_command(label="Zoom Out", command=lambda: self.worker.task_zoom_out(self.size / 2))
         self.menu.add_cascade(label='View', menu=self.menu_view)
 
         self.menu_help = tk.Menu(self.menu, tearoff=0)
@@ -73,17 +84,12 @@ class Gui:
 
         self.root.config(menu=self.menu)
 
-    # def render(self):
-    #     center_deg = self.camera.px_to_gps(self._center_px())
-    #     self.status.config(text='Center: (lat={}, lon={}), Zoom: {}, px/m={}'
-    #                        .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
-
     def start(self):
         self.root.update()
-        self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
         Thread(name='worker', target=self.worker.run).start()
 
-        while True:
+        self.running = True
+        while self.running:
             self.root.update()
             while not self.worker.queue_status.empty():
                 status: _status = self.worker.queue_status.get(block=False)
@@ -94,19 +100,32 @@ class Gui:
                 self._image = ImageTk.PhotoImage(self._raw_image)
                 self.panel.configure(image=self._image)
 
-    def menu_help_about(self):
+    def exit(self):
+        self.worker(lambda: sys.exit(0))
+        self.running = False
+
+    @property
+    def size(self):
+        return np.array((self.panel.winfo_width(), self.panel.winfo_height()))
+
+    @staticmethod
+    def menu_help_about():
         if arg_parser is None:
             messagebox.showinfo(title='About', message='Map viewer GUI made by Nulano.')
         else:
             messagebox.showinfo(title='About', message=arg_parser.description)
 
-    def menu_help_controls(self):
+    @staticmethod
+    def menu_help_controls():
         messagebox.showinfo(title='Controls', message=
                             'Left-click to zoom in to point\n'
                             'Right-click to zoom out to point\n'
-                            'Middle-click to center at point')
+                            'Middle-click to center at point\n\n'
+                            '<P> and <O> to zoom in and out\n'
+                            'Arrow keys to move around')
 
-    def menu_help_args(self):
+    @staticmethod
+    def menu_help_args():
         if arg_parser is None:
             log('arg_parser is None', level=1)
         else:
@@ -127,6 +146,9 @@ class GuiWorker:
 
         self.camera = None
         self.renderer = None
+        self.settings = {}
+
+        renderer.nulano_gui_callback = self._status
 
     def __call__(self, task):
         self.queue_tasks.put(task)
@@ -136,19 +158,19 @@ class GuiWorker:
             self._process_tasks()
             self._render()
 
-    def _status(self, log_message: str = None, status: str = None, current: int = 0, maximum: int = 0):
+    def _status(self, group: str = None, status: str = None, current: int = 0, maximum: int = 0):
         message = None if maximum == 0 else '{}/{}'.format(current, maximum)
 
         if status is not None:
             message = status if message is None else '{} ({})'.format(status, message)
 
-        self.queue_status.put(_status(current / maximum if maximum != 0 else 0, message))
-
-        if log_message is not None:
-            message = log_message if message is None else '{}: {}'.format(log_message, message)
+        if group is not None:
+            message = group if message is None else '{}: {}'.format(group, message)
 
         if message is not None:
             log(message)
+
+        self.queue_status.put(_status(current / maximum if maximum != 0 else current, message))
     
     def _process_tasks(self):
         while True:
@@ -159,18 +181,22 @@ class GuiWorker:
     def _render(self):
         log('-- rendering...')
         self.queue_results.put(self.renderer.render())
+        center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
         log('-- rendering done')
+        self._status(status='lat={}, lon={}, zoom={}, px/m={}'
+                            .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
 
     @_worker_task
     def task_load_map(self, file):
         try:
             log('-- loading map:', file)
-            self._status('loading map', 'parse xml', 0, 0)
+            self._status(status='parsing xml')
             element_tree = ElementTree.parse(file)
-            renderer.nulano_gui_callback = partial(self._status, 'loading map')
             self.camera = camera.Camera()
             self.renderer = renderer.Renderer(self.camera, element_tree)
+            self.settings = {}
             self.renderer.center_camera()
+            self.settings['zoom'] = self.camera.zoom_level
             log('-- map loaded')
         except FileNotFoundError:
             log('File {} does not exist.'.format(file), level=3)
@@ -183,16 +209,39 @@ class GuiWorker:
         self.camera.px_width, self.camera.px_height = width, height
 
     @_worker_task
-    def task_center(self, x, y):
-        self.camera.center_at(*self.camera.px_to_gps((x, y)))
+    def task_center(self, point):
+        self.camera.center_at(*self.camera.px_to_gps(point))
 
     @_worker_task
-    def task_zoom_in(self, x, y):
-        self.camera.zoom_in((x, y))
+    def task_center_gps(self, point, setdefault=False):
+        self.camera.center_at(*point)
+        if setdefault:
+            self.settings['center'] = point
 
     @_worker_task
-    def task_zoom_out(self, x, y):
-        self.camera.zoom_out((x, y))
+    def task_center_restore(self):
+        if 'center' in self.settings:
+            self.camera.center_at(*self.settings['center'])
+        else:
+            self.renderer.center_camera()
+
+    @_worker_task
+    def task_zoom_in(self, point):
+        self.camera.zoom_in(point)
+
+    @_worker_task
+    def task_zoom_out(self, point):
+        self.camera.zoom_out(point)
+
+    @_worker_task
+    def task_zoom_set(self, zoom, setdefault=False):
+        self.camera.zoom_level = zoom
+        if setdefault:
+            self.settings['zoom'] = zoom
+
+    @_worker_task
+    def task_zoom_restore(self):
+        self.camera.zoom_level = self.settings['zoom']
 
 
 if __name__ == '__main__':

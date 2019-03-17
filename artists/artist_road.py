@@ -118,7 +118,7 @@ class ArtistRoadArea(ArtistArea):
             and tags.get('highway') in self.types
 
 
-_all = {
-    'pedestrian_zone': ArtistRoadArea(('pedestrian',), '#aaa', '#999'),
-    'roads': ArtistRoad()
-}
+_all = [
+    ArtistRoadArea(('pedestrian',), '#aaa', '#999'),
+    ArtistRoad()
+]

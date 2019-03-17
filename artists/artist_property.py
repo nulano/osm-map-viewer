@@ -25,7 +25,9 @@ class ArtistParking(ArtistArea):
         self.filter += TagMatches('amenity', ('parking', ))
 
 
-_all = {'building': ArtistBuilding(),
-        'sport': ArtistSportArea(),
-        'playground': ArtistPlayground(),
-        'parking': ArtistParking()}
+_all = [
+    ArtistBuilding(),
+    ArtistSportArea(),
+    ArtistPlayground(),
+    ArtistParking()
+]

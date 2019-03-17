@@ -77,18 +77,18 @@ class ArtistWaterWay(ArtistWay):
         self.filter += TagMatches('waterway', types)
 
 
-_all = {
-    'mountain': ArtistMountain(),
-    'forest': ArtistForest(),
-    'industrial': ArtistIndustrial(),
-    'commercial': ArtistCommercial(),
-    'school': ArtistEducation(),
-    'grass': ArtistGrass(),
-    'orchard': ArtistOrchard(),
-    'cemetery': ArtistCemetery(),
-    'park': ArtistPark(),
-    'garden': ArtistGarden(),
-    'water': ArtistWaterArea(),
-    'water_line_small': ArtistWaterWay(width=3, types=('stream', 'canal')),
-    'water_line':  ArtistWaterWay(width=5, types=('river', ))
-}
+_all = [
+    ArtistMountain(),
+    ArtistForest(),
+    ArtistIndustrial(),
+    ArtistCommercial(),
+    ArtistEducation(),
+    ArtistGrass(),
+    ArtistOrchard(),
+    ArtistCemetery(),
+    ArtistPark(),
+    ArtistGarden(),
+    ArtistWaterArea(),
+    ArtistWaterWay(width=3, types=('stream', 'canal')),
+    ArtistWaterWay(width=5, types=('river', ))
+]

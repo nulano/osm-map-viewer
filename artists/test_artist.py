@@ -27,7 +27,7 @@ with open('testdata/input.in', 'r') as f:
         
         cam = BoxCamera(Rectangle(min_lat, min_lon, max_lat, max_lon), (width, height))
         zoom = int(f.readline())
-        artists = {arg: find_artist(arg) for arg in sys.argv[1:]}
+        artists = [find_artist(arg) for arg in sys.argv[1:]]
         tree = ET.parse(osm_filename)
         helper = osm_helper.OsmHelper(tree)
         
@@ -35,16 +35,16 @@ with open('testdata/input.in', 'r') as f:
         to_draw = defaultdict(list)
         skipped = []  # TODO print these
         for element in root:
-            for name, artist in artists.items():
+            for artist in artists:
                 if artist.wants_element(element, helper):
-                    to_draw[name].append(element)
+                    to_draw[artist].append(element)
             else:
                 skipped.append(element)
         
         im1 = PIL.Image.new('RGB', (width, height), '#eed')
         draw = PIL.ImageDraw.Draw(im1)
-        for name, artist in artists.items():
-            artist.draw(to_draw[name], helper, cam, draw)
+        for artist in artists:
+            artist.draw(to_draw[artist], helper, cam, draw)
         
         im2 = PIL.Image.open(png_filename)
         

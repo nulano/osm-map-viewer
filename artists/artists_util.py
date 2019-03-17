@@ -20,15 +20,22 @@ class ArtistArea:
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
         polys = []
+        outlines = []
         for el in elements:
             if el.tag == 'relation':
                 polys += osm_helper.multipolygon_to_wsps(el)
+                outlines += osm_helper.multipolygon_to_polygons(el)
             elif el.tag == 'way':
-                polys.append(osm_helper.way_coordinates(el))
+                way = osm_helper.way_coordinates(el)
+                polys.append(way)
+                outlines.append(way)
             else:
                 print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
         for poly in polys:
-            image_draw.polygon([camera.gps_to_px(point) for point in poly], fill=self.fill, outline=self.outline)
+            image_draw.polygon([camera.gps_to_px(point) for point in poly], fill=self.fill)
+        if self.outline is not None:
+            for line in outlines:
+                image_draw.line([camera.gps_to_px(point) for point in line], fill=self.outline, width=1)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         points = []

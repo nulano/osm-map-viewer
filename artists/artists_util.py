@@ -139,14 +139,14 @@ class ElementFilter(ElementFilterBase):
         return self.func(tags, element, osm_helper)
 
 
-class _IsPoint(ElementFilterBase):
+class _IsNode(ElementFilterBase):
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
         return element.tag == 'node'
 
 
 class _IsWay(ElementFilterBase):
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return element.tag == 'way' and element.attrib.get('area') != 'yes'
+        return element.tag == 'way'
 
 
 class _IsArea(ElementFilterBase):
@@ -154,7 +154,7 @@ class _IsArea(ElementFilterBase):
         return (element.tag == 'way') or (element.tag == 'relation' and tags.get('type') == 'multipolygon')
 
 
-IsPoint = _IsPoint()
+IsNode = _IsNode()
 IsWay = _IsWay()
 IsArea = _IsArea()
 

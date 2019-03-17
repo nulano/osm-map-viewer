@@ -1,52 +1,104 @@
+from collections import namedtuple, defaultdict
+from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import IsWay, TagMatches, ElementFilter, ArtistArea
+from artists_util import ArtistArea
 from location_filter import Rectangle
-from osm_helper import OsmHelper
+from osm_helper import OsmHelper, tag_dict
 
 
-# TODO base on ArtistWay?
+_road_base_type = namedtuple('road_base_type', ('tag', 'values', 'has_link',
+                                                'width', 'fill', 'outline', 'outline_bridge', 'min_ppm'))
+_road_base_types = [
+    _road_base_type('highway', ('footway', 'steps', 'path'),          False, 1, '#aaa', None,   None,   0.200),
+    _road_base_type('highway', ('pedestrian',),                       False, 2, '#aaa', None,   None,   0.200),
+    _road_base_type('highway', ('road',),                             False, 2, '#888', None,   None,   0.150),
+    _road_base_type('highway', ('service',),                          False, 2, '#fff', '#ccc', '#ccc', 0.150),
+    _road_base_type('highway', ('living_street',),                    False, 5, '#ddd', None,   None,   0.150),
+    _road_base_type('highway', ('residential', 'unclassified'),       False, 3, '#fff', '#ccc', '#ccc', 0.100),
+    _road_base_type('highway', ('tertiary',),                         True,  5, '#fff', '#aaa', '#666', 0.050),
+    _road_base_type('highway', ('secondary',),                        True,  5, '#fea', '#a94', '#666', 0.010),
+    _road_base_type('railway', ('tram',),                             False, 1, '#000', None,   None,   0.200),
+    _road_base_type('railway', ('rail', 'narrow_gauge', 'turntable'), False, 1, '#000', None,   None,   0.000),
+    _road_base_type('highway', ('primary',),                          True,  5, '#fda', '#a84', '#666', 0.000),
+    _road_base_type('highway', ('trunk',),                            True,  8, '#d60', '#830', '#666', 0.000),
+    _road_base_type('highway', ('motorway',),                         True,  8, '#fa0', '#a40', '#666', 0.000)
+]
+_road_type = namedtuple('road_type', ('ordinal', 'width', 'fill', 'outline', 'outline_bridge', 'min_ppm'))
+_road_types_count = 0
+_road_types = defaultdict(dict)
+def _road_type_add(btp: _road_base_type, link=False):
+    global _road_types_count
+    for v in btp.values:
+        _road_types[btp.tag][v if not link else (v + '_link')] = \
+            _road_type(_road_types_count, btp.width, btp.fill, btp.outline, btp.outline_bridge, btp.min_ppm)
+        _road_types_count += 1
+for tp in _road_base_types:
+    if tp.has_link:
+        _road_type_add(tp, link=True)
+for tp in _road_base_types:
+    _road_type_add(tp)
+
+
 class ArtistRoad:
-    def __init__(self, tag, types, color='#fff', width=3, min_ppm=0, bridge=False):
-        self.color = color
-        self.width = width
-        self.min_ppm = min_ppm
-        self.bridge = bridge
-        self.filter = IsWay\
-            .And(TagMatches(tag, types))\
-            .And(ElementFilter(lambda t, e, o: bridge == ('bridge' in t)))\
-            .And(TagMatches('tunnel', ('yes',)).Not())
+    def __init__(self):
+        self.types = WeakKeyDictionary()
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
-        return self.filter.test(element, osm_helper)
+        if element.tag != 'way':
+            return False
+        tags = tag_dict(element)
+        if tags.get('area') == 'yes':
+            return False
+        for tag, types in _road_types.items():
+            if tags.get(tag) in types:
+                self.types[element] = types[tags.get(tag)]
+                return True
+        else:
+            return False
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
         from camera import Camera  # FIXME yuck!
-        return Camera(zoom_level=zoom).px_per_meter() >= self.min_ppm
+        return Camera(zoom_level=zoom).px_per_meter() >= self.types[element].min_ppm
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
-        lines = []
-        for el in elements:
-            if el.tag == 'way':
-                lines.append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)])
+        layers = defaultdict(lambda: defaultdict(list))
+        for element in elements:
+            tags = tag_dict(element)
+            if tags.get('bridge') == 'yes':
+                layer = int(tags.get('layer', 1))
+            elif tags.get('tunnel') == 'yes':
+                layer = int(tags.get('layer', -1))
             else:
-                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
+                layer = int(tags.get('layer', 0))
+            road_type: _road_type = self.types[element]
+            layers[layer][road_type].append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(element)])
 
-        if self.width >= 5 and self.bridge:
-            for line in lines:
-                image_draw.line(line, fill='#666', width=self.width + 2, joint='curve')
+        def draw_roads(color, width, roads):
+            if color is not None:
+                for road in roads:
+                    image_draw.line(road, fill=color, width=width, joint='curve')
 
-        for line in lines:
-            image_draw.line(line, fill=self.color, width=self.width, joint='curve')
+        for layer in range(-5, 7):
+            # draw bridge outline
+            if layer > 0:
+                for road_type in sorted(layers[layer]):
+                    draw_roads(road_type.outline_bridge, road_type.width + 2, layers[layer][road_type])
+
+            # draw surface outline
+            if layer == 0:
+                for road_type in sorted(layers[layer]):
+                    draw_roads(road_type.outline, road_type.width + 2, layers[layer][road_type])
+
+            # draw line
+            if layer >= 0:
+                for road_type in sorted(layers[layer]):
+                    draw_roads(road_type.fill, road_type.width, layers[layer][road_type])
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        points = []
-        if element.tag == 'way':
-            points = osm_helper.way_coordinates(element)
-        else:
-            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        points = osm_helper.way_coordinates(element)
         if len(points) == 0:
             return []
         from operator import itemgetter
@@ -57,50 +109,16 @@ class ArtistRoad:
 class ArtistRoadArea(ArtistArea):
     def __init__(self, types, fill, outline):
         super().__init__(fill=fill, outline=outline)
-        self.filter += TagMatches('highway', types).And(TagMatches('area', ('yes', )))
+        self.types = types
+
+    def wants_element(self, element: Element, osm_helper: OsmHelper):
+        tags = tag_dict(element)
+        return ((element.tag == 'way' and tags.get('area') == 'yes')
+             or (element.tag == 'relation' and tags.get('type') == 'multipolygon')) \
+            and tags.get('highway') in self.types
 
 
-_all = {'pedestrian': ArtistRoadArea(('pedestrian',), '#aaa', '#999')}
-
-
-def _add(road, link, bridge):
-    name, color, width, min_ppm, link_allow, tag, types = road
-    name = 'road_' + name
-
-    if bridge:
-        name += '_bridge'
-
-    if link:
-        if not link_allow:
-            return
-        name += '_link'
-        types = tuple(tp + '_link' for tp in types)
-
-    _all[name] = ArtistRoad(tag, types, color, width, min_ppm, bridge)
-
-
-_types = [
-    ('ped_small', '#aaa', 1, 0.200, False, 'highway', ('footway', 'steps', 'path')),
-    ('ped_large', '#aaa', 2, 0.200, False, 'highway', ('pedestrian',)),
-    ('unknown',   '#888', 2, 0.150, False, 'highway', ('road',)),
-    ('tiny',      '#fff', 2, 0.150, False, 'highway', ('service',)),
-    ('ped_zone',  '#ddd', 3, 0.150, False, 'highway', ('living_street',)),
-    ('small',     '#fff', 3, 0.100, False, 'highway', ('residential', 'unclassified')),
-    ('normal',    '#fff', 5, 0.050, True,  'highway', ('tertiary',)),
-    ('main',      '#fea', 5, 0.010, True,  'highway', ('secondary',)),
-    ('tram',      '#000', 1, 0.200, False, 'railway', ('tram',)),
-    ('rail',      '#000', 1, 0.000, False, 'railway', ('rail', 'narrow_gauge', 'turntable')),
-    ('primary',   '#fda', 5, 0.000, True,  'highway', ('primary',)),
-    ('highway',   '#d60', 8, 0.000, True,  'highway', ('trunk',)),
-    ('motorway',  '#fa0', 8, 0.000, True,  'highway', ('motorway',))
-]
-
-
-for _road in _types:
-    _add(_road, True,  False)
-for _road in _types:
-    _add(_road, False, False)
-for _road in _types:
-    _add(_road, True,  True)
-for _road in _types:
-    _add(_road, False, True)
+_all = {
+    'pedestrian_zone': ArtistRoadArea(('pedestrian',), '#aaa', '#999'),
+    'roads': ArtistRoad()
+}

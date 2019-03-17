@@ -76,7 +76,11 @@ class OsmHelper:
             ways = Queue()
             for el in multipolygon:
                 if el.tag == 'member' and el.attrib['type'] == 'way':
-                    ways.put(self.way_node_ids(self.ways[el.attrib['ref']]))
+                    way = self.ways.get(el.attrib['ref'])
+                    if way is None:
+                        nulano_log('multipolygon {} is missing way {}'.format(id, el.attrib['ref']), level=1)
+                    else:
+                        ways.put(self.way_node_ids(way))
             ways_a, ways_b = {}, {}
             while not ways.empty():
                 way = ways.get(block=False)
@@ -106,11 +110,11 @@ class OsmHelper:
                         ways_a[a] = way
                         ways_b[b] = way
             if len(ways_a) is not 0:
-                raise ValueError(str(len(ways_a)) + ' were not connected')
+                nulano_log('multipolygon {} has {} unconnected way(s)'.format(id, len(ways_a)), level=1)
         except (KeyError, ValueError):
             from traceback import format_exc
             for line in format_exc(limit=2).splitlines():
-                nulano_log(line, level=1)
+                nulano_log(line, level=2)
             out = []
         self._cache_multipolygon_to_polygons[id] = out
         return out

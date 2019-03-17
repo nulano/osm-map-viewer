@@ -27,7 +27,7 @@ _status = namedtuple('gui_worker_status', ('progress', 'status_message'))
 class Gui:
     def __init__(self, file, dimensions, center=None, zoom=None):
         self.worker = GuiWorker()
-        self.worker(lambda: self.worker.task_load_map(file))
+        self.worker.task_load_map(file)
         # TODO center, zoom, ...
 
         self._raw_image, self._image = None, None
@@ -37,9 +37,9 @@ class Gui:
         # FIXME self.root.protocol("WM_DELETE_WINDOW", lambda: sys.exit(0))
 
         self.panel = tk.Label(self.root)
-        # self.panel.bind('<ButtonRelease-2>', func=self.panel_center)
-        # self.panel.bind('<ButtonRelease-1>', func=self.panel_zoom_in)
-        # self.panel.bind('<ButtonRelease-3>', func=self.panel_zoom_out)
+        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.worker.task_center(e.x, e.y))
+        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.worker.task_zoom_in(e.x, e.y))
+        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.worker.task_zoom_out(e.x, e.y))
         self.panel.grid(row=0, column=0, columnspan=2, sticky='nesw')
         self.root.rowconfigure(index=0, weight=1)
 
@@ -80,7 +80,7 @@ class Gui:
 
     def start(self):
         self.root.update()
-        self.worker(partial(self.worker.task_resize, (self.root.winfo_width(), self.root.winfo_height())))
+        self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
         Thread(name='worker', target=self.worker.run).start()
 
         while True:
@@ -88,7 +88,7 @@ class Gui:
             while not self.worker.queue_status.empty():
                 status: _status = self.worker.queue_status.get(block=False)
                 self.progress.set(status.progress)
-                # self.progress_message.config(text=status.status_message)
+                self.status.config(text=status.status_message)
             while not self.worker.queue_results.empty():
                 self._raw_image = self.worker.queue_results.get(block=False)
                 self._image = ImageTk.PhotoImage(self._raw_image)
@@ -111,6 +111,12 @@ class Gui:
             log('arg_parser is None', level=1)
         else:
             messagebox.showinfo(title='Launch Options', message=arg_parser.format_help())
+
+
+def _worker_task(func):
+    def wrap(self, *args, **kwargs):
+        self(lambda: func(self, *args, **kwargs))
+    return wrap
 
 
 class GuiWorker:
@@ -154,7 +160,8 @@ class GuiWorker:
         log('-- rendering...')
         self.queue_results.put(self.renderer.render())
         log('-- rendering done')
-    
+
+    @_worker_task
     def task_load_map(self, file):
         try:
             log('-- loading map:', file)
@@ -171,8 +178,21 @@ class GuiWorker:
             log('Use "{0} -f FILE" to specify a map file or "{0} -h" to show help.'.format(sys.argv[0]), level=3)
             sys.exit(1)
 
-    def task_resize(self, dimensions):
-        self.camera.px_width, self.camera.px_height = dimensions
+    @_worker_task
+    def task_resize(self, width, height):
+        self.camera.px_width, self.camera.px_height = width, height
+
+    @_worker_task
+    def task_center(self, x, y):
+        self.camera.center_at(*self.camera.px_to_gps((x, y)))
+
+    @_worker_task
+    def task_zoom_in(self, x, y):
+        self.camera.zoom_in((x, y))
+
+    @_worker_task
+    def task_zoom_out(self, x, y):
+        self.camera.zoom_out((x, y))
 
 
 if __name__ == '__main__':

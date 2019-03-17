@@ -28,10 +28,12 @@ class LocationFilter:
     def get_pairs(self, rectangle: Rectangle):
         out = []
         for element, artist, approx_location in self.draw_pairs:
-            for bb in approx_location:
-                if max(rectangle.min_lat, bb.min_lat) > min(rectangle.max_lat, bb.max_lat) \
-                or max(rectangle.min_lon, bb.min_lon) > min(rectangle.max_lon, bb.max_lon):
-                    break
-            else:
-                out.append((element, artist))
+            if len(approx_location) != 0:
+                for bb in approx_location:
+                    if max(rectangle.min_lat, bb.min_lat) <= min(rectangle.max_lat, bb.max_lat) \
+                   and max(rectangle.min_lon, bb.min_lon) <= min(rectangle.max_lon, bb.max_lon):
+                        break
+                else:
+                    continue
+            out.append((element, artist))
         return out

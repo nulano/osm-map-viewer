@@ -17,13 +17,13 @@ class ArtistForest(ArtistArea):
 class ArtistIndustrial(ArtistArea):
     def __init__(self):
         super().__init__(fill='#ffc')
-        self.filter += TagMatches('landuse', ('industrial', ))
+        self.filter += TagMatches('landuse', ('industrial', 'port'))
 
 
 class ArtistCommercial(ArtistArea):
     def __init__(self):
         super().__init__(fill='#cff')
-        self.filter += TagMatches('landuse', ('retail', ))
+        self.filter += TagMatches('landuse', ('retail', 'commercial'))
 
 
 class ArtistEducation(ArtistArea):
@@ -43,6 +43,12 @@ class ArtistOrchard(ArtistArea):
     def __init__(self):
         super().__init__(fill='#7d7')
         self.filter += TagMatches('landuse', ('vineyard', 'orchard', 'plant_nursery'))
+
+
+class ArtistCemetery(ArtistArea):
+    def __init__(self):
+        super().__init__(fill='#5a5')
+        self.filter += TagMatches('landuse', ('cemetery',)).Or(TagMatches('amenity', ('grave_yard', )))
 
 
 class ArtistPark(ArtistArea):
@@ -79,6 +85,7 @@ _all = {
     'school': ArtistEducation(),
     'grass': ArtistGrass(),
     'orchard': ArtistOrchard(),
+    'cemetery': ArtistCemetery(),
     'park': ArtistPark(),
     'garden': ArtistGarden(),
     'water': ArtistWaterArea(),

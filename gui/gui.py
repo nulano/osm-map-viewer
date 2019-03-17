@@ -1,6 +1,6 @@
 import argparse
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from xml.etree import ElementTree
 import sys
 
@@ -41,30 +41,44 @@ class Gui:
         self.menu = tk.Menu(self.root)
 
         self.menu_file = tk.Menu(self.menu, tearoff=0)
-        self.menu_file.add_command(label="About", command=self.menu_about)
         self.menu_file.add_command(label="Exit", command=self.root.quit)
         self.menu.add_cascade(label='File', menu=self.menu_file)
 
         self.menu_view = tk.Menu(self.menu, tearoff=0)
         self.menu_view.add_command(label="Recenter", command=self.menu_view_recenter)
+        self.menu_view.add_command(label="Reset Zoom", command=self.menu_view_zoom_reset)
         self.menu_view.add_command(label="Zoom In", command=self.menu_view_zoom_in)
         self.menu_view.add_command(label="Zoom Out", command=self.menu_view_zoom_out)
-        self.menu_view.add_command(label="Reset Zoom", command=self.menu_view_zoom_reset)
         self.menu.add_cascade(label='View', menu=self.menu_view)
+
+        self.menu_help = tk.Menu(self.menu, tearoff=0)
+        if arg_parser is not None:
+            self.menu_help.add_command(label='Launch Options...', command=self.menu_help_args)
+        self.menu_help.add_command(label='Controls...', command=self.menu_help_controls)
+        self.menu_help.add_command(label="About...", command=self.menu_help_about)
+        self.menu.add_cascade(label='Help', menu=self.menu_help)
 
         self.root.config(menu=self.menu)
 
     def load_map(self):
         self.root.withdraw()
-
         mb = tk.Toplevel()
         progress = tk.DoubleVar()
+        mb_cur = tk.Label(mb)
+        mb_cur.grid(row=0, column=0, sticky='sw')
+        mb_step = tk.Label(mb)
+        mb_step.grid(row=0, column=2, sticky='se')
         pb = ttk.Progressbar(mb, variable=progress, max=1.0)
-        pb.grid(row=1, column=0)
-        mb.pack_slaves()
+        pb.grid(row=1, column=0, columnspan=3, sticky='swe')
+        mb.columnconfigure(1, weight=1)
+        mb.rowconfigure(0, weight=1)
+        mb.geometry('250x50')
+        mb.resizable(False, False)
 
         def renderer_callback(now, max, cur):
             self.log('processing map: {}/{} (step {})'.format(now, max, cur))
+            mb_cur.config(text=cur)
+            mb_step.config(text='{}/{}'.format(now, max))
             progress.set(now / max)
             mb.update()
 
@@ -138,8 +152,23 @@ class Gui:
         self.camera.center_at(point[0], point[1])
         self.render()
 
-    def menu_about(self):
-        pass  # FIXME
+    def menu_help_about(self):
+        if arg_parser is None:
+            messagebox.showinfo(title='About', message='Map viewer GUI made by Nulano.')
+        else:
+            messagebox.showinfo(title='About', message=arg_parser.description)
+
+    def menu_help_controls(self):
+        messagebox.showinfo(title='Controls', message=
+                            'Left-click to zoom in to point\n'
+                            'Right-click to zoom out to point\n'
+                            'Middle-click to center at point')
+
+    def menu_help_args(self):
+        if arg_parser is None:
+            self.log('arg_parser is None', level=1)
+        else:
+            messagebox.showinfo(title='Launch Options', message=arg_parser.format_help())
 
     def menu_view_recenter(self):
         self.camera.center_at(self.def_center[0], self.def_center[1])
@@ -159,7 +188,7 @@ class Gui:
 
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(description='Gui for map project. Made by Nulano 2019.')
+    arg_parser = argparse.ArgumentParser(description='OSM Map viewer GUI made by Nulano (2019)')
     arg_parser.add_argument('-f', '--map', default='map.osm', help='the OpenStreetMap xml file to use', dest='file')
     arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
     arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')

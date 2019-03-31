@@ -1,66 +1,92 @@
-from artists_util import ArtistArea, TagMatches, ArtistWay
+from collections import namedtuple, defaultdict
+from weakref import WeakKeyDictionary
+from xml.etree.ElementTree import Element
+
+from PIL.ImageDraw import ImageDraw
+
+from artists_util import ArtistArea, TagMatches, ArtistWay, explode_tag_style_map, FilterTrue, IsArea
+from geometry import polygon_area
+from location_filter import Rectangle
+from osm_helper import OsmHelper, tag_dict
+
+_area_type = namedtuple('area_type',
+                        'ordinal fill fill_min_area outline outline_min_area outline_width additional_filter')
+_area_types = explode_tag_style_map([
+    ('natural', 'bare_rock scree shingle rock stone',       _area_type(None, '#777', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'forest',                                   _area_type(None, '#ada', 0, None,  0, 1, FilterTrue)),
+    ('natural', 'wood scrub heath moor',                    _area_type(None, '#ada', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'industrial port',                          _area_type(None, '#ffc', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'retail commercial',                        _area_type(None, '#cff', 0, None,  0, 1, FilterTrue)),
+    ('amenity', 'school kindergarten college university',   _area_type(None, '#fcf', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'grass meadow village_green',               _area_type(None, '#dfd', 0, None,  0, 1, FilterTrue)),
+    ('natural', 'grassland',                                _area_type(None, '#dfd', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'vineyard orchard plant_nursery',           _area_type(None, '#7d7', 0, None,  0, 1, FilterTrue)),
+    ('landuse', 'cemetary',                                 _area_type(None, '#5a5', 0, None,  0, 1, FilterTrue)),
+    ('amenity', 'grave_yard',                               _area_type(None, '#5a5', 0, None,  0, 1, FilterTrue)),
+    ('leisure', 'park',                                     _area_type(None, '#cfc', 0, None,  0, 1, FilterTrue)),
+    ('leisure', 'garden',                                   _area_type(None, '#beb', 0, None,  0, 1, FilterTrue)),
+])
 
 
-class ArtistMountain(ArtistArea):
+class ArtistLand:
     def __init__(self):
-        super().__init__(fill='#777')
-        self.filter += TagMatches('natural', ('bare_rock', 'scree', 'shingle', 'rock', 'stone', 'cave_entrance'))
+        self.types = WeakKeyDictionary()
 
+    def wants_element(self, element: Element, osm_helper: OsmHelper):
+        tags = tag_dict(element)
+        if not IsArea(tags, element, osm_helper):
+            return False
+        for tag, types in _area_types.items():
+            try:
+                style: _area_type = types[tags[tag]]
+            except KeyError:
+                continue
+            if style.additional_filter(tags, element, osm_helper):
+                self.types[element] = style
+                return True
+        else:
+            return False
 
-class ArtistForest(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#ada')
-        self.filter += TagMatches('landuse', ('forest', )) \
-                   .Or(TagMatches('natural', ('wood', 'scrub', 'heath', 'moor')))
+    def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
+        return True  # TODO
 
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
+        polygons = defaultdict(list)
+        outlines = defaultdict(list)
+        for element in elements:
+            style: _area_type = self.types[element]
+            if element.tag == 'relation':
+                shape = osm_helper.multipolygon_to_wsps(element)
+                outline = [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(element)]
+            else:  # if el.tag == 'way':
+                way = osm_helper.way_coordinates(element)
+                shape = [way[:-1]]
+                outline = [outlines]
+            shape = [[camera.gps_to_px(point) for point in polygon] for polygon in shape]
+            outline = [[camera.gps_to_px(point) for point in polygon] for polygon in outline]
+            area = sum(map(polygon_area, shape))
+            if area >= style.fill_min_area and style.fill is not None:
+                polygons[style] += shape
+            if area >= style.outline_min_area and style.outline is not None:
+                outlines[style] += outline
+        for style in sorted(polygons):
+            for polygon in polygons[style]:
+                image_draw.polygon(polygon, fill=style.fill)
+        for style in sorted(outlines):
+            for outline in outlines[style]:
+                image_draw.line(outline, fill=style.outline, width=style.outline_width)
 
-class ArtistIndustrial(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#ffc')
-        self.filter += TagMatches('landuse', ('industrial', 'port'))
-
-
-class ArtistCommercial(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#cff')
-        self.filter += TagMatches('landuse', ('retail', 'commercial'))
-
-
-class ArtistEducation(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#fcf')
-        self.filter += TagMatches('amenity', ('college', 'kindergarten', 'school', 'university'))
-
-
-class ArtistGrass(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#dfd')
-        self.filter += TagMatches('landuse', ('grass', 'meadow', 'village_green')) \
-                   .Or(TagMatches('natural', ('grassland', )))
-
-
-class ArtistOrchard(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#7d7')
-        self.filter += TagMatches('landuse', ('vineyard', 'orchard', 'plant_nursery'))
-
-
-class ArtistCemetery(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#5a5')
-        self.filter += TagMatches('landuse', ('cemetery',)).Or(TagMatches('amenity', ('grave_yard', )))
-
-
-class ArtistPark(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#cfc')
-        self.filter += TagMatches('leisure', ('park', ))
-
-
-class ArtistGarden(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#beb')
-        self.filter += TagMatches('leisure', ('garden', ))
+    def approx_location(self, element: Element, osm_helper: OsmHelper):
+        points = []
+        if element.tag == 'relation':
+            points = [pt for poly in osm_helper.multipolygon_to_wsps(element) for pt in poly]
+        elif element.tag == 'way':
+            points = osm_helper.way_coordinates(element)
+        if len(points) == 0:
+            return []
+        from operator import itemgetter
+        return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                          max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
 class ArtistWaterArea(ArtistArea):
@@ -78,16 +104,7 @@ class ArtistWaterWay(ArtistWay):
 
 
 _all = [
-    ArtistMountain(),
-    ArtistForest(),
-    ArtistIndustrial(),
-    ArtistCommercial(),
-    ArtistEducation(),
-    ArtistGrass(),
-    ArtistOrchard(),
-    ArtistCemetery(),
-    ArtistPark(),
-    ArtistGarden(),
+    ArtistLand(),
     ArtistWaterArea(),
     ArtistWaterWay(width=3, types=('stream', 'canal')),
     ArtistWaterWay(width=5, types=('river', ))

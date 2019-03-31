@@ -1,3 +1,4 @@
+from collections import defaultdict
 from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
@@ -24,10 +25,10 @@ class ArtistArea:
         for el in elements:
             if el.tag == 'relation':
                 polys += osm_helper.multipolygon_to_wsps(el)
-                outlines += osm_helper.multipolygon_to_polygons(el)
+                outlines += [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(el)]
             elif el.tag == 'way':
                 way = osm_helper.way_coordinates(el)
-                polys.append(way)
+                polys.append(way[:-1])
                 outlines.append(way)
             else:
                 print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
@@ -87,6 +88,19 @@ class ArtistWay:
         from operator import itemgetter
         return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
+
+
+def explode_tag_style_map(data: list):
+    count = 0
+    exploded = defaultdict(dict)
+    for tag, values, style in data:
+        if isinstance(values, str):
+            values = values.replace(',', ' ').split()
+        for value in values:
+            # noinspection PyProtectedMember
+            exploded[tag][value] = style._replace(ordinal=count)
+            count += 1
+    return exploded
 
 
 class ElementFilterBase:
@@ -151,12 +165,34 @@ class _IsWay(ElementFilterBase):
 
 class _IsArea(ElementFilterBase):
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return (element.tag == 'way') or (element.tag == 'relation' and tags.get('type') == 'multipolygon')
+        if element.tag == 'way':
+            nodes = element.findall('nd')
+            return nodes[0].get('ref') == nodes[-1].get('ref')
+        else:
+            return element.tag == 'relation' and tags.get('type') == 'multipolygon'
+
+
+class _FilterTrue(ElementFilterBase):
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return True
+
+    def test(self, element: Element, osm_helper: OsmHelper):
+        return True
+
+
+class _FilterFalse(ElementFilterBase):
+    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
+        return False
+
+    def test(self, element: Element, osm_helper: OsmHelper):
+        return False
 
 
 IsNode = _IsNode()
 IsWay = _IsWay()
 IsArea = _IsArea()
+FilterTrue = _FilterTrue()
+FilterFalse = _FilterFalse()
 
 
 class TagMatches(ElementFilterBase):

@@ -1,3 +1,5 @@
+import math
+
 from location_filter import Rectangle
 import numpy as np
 
@@ -15,9 +17,14 @@ def get_typical_view_size(zoom_level: int):
 class Camera:
     def __init__(self, latitude: float = 0, longitude: float = 0,
                  zoom_level: int = 10, dimensions: (int, int) = (10, 10)):
-        self.zoom_level = zoom_level
         self.dimensions = np.array(dimensions)
-        self.center = np.array((latitude, longitude))
+        self.zoom_level = zoom_level
+        self.center_at(latitude, longitude)
+
+    # noinspection PyAttributeOutsideInit
+    def center_at(self, new_lat: float, new_lon: float):
+        self._center = np.array((new_lat, new_lon))
+        self._center_point = self.gps_to_point(new_lat, new_lon)
 
     @property
     def px_width(self): return self.dimensions[0]
@@ -31,41 +38,44 @@ class Camera:
     @px_height.setter
     def px_height(self, val: int): self.dimensions[1] = val
 
-    def center_at(self, new_lat: float, new_lon: float):
-        self.center = np.array((new_lat, new_lon))
+    @property
+    def zoom_level(self): return self._zoom_level
 
-    def px_per_meter(self):
-        return 1.5 ** self.zoom_level / 200
+    # noinspection PyAttributeOutsideInit
+    @zoom_level.setter
+    def zoom_level(self, val: int):
+        self._zoom_level = np.clip(val, 0, MAX_ZOOM_LEVEL)
+        self._ppm = 1.5 ** self._zoom_level / 200
 
-    def deg_per_px(self):
-        return 360 / _EARTH_CIRCUMFERENCE_M / self.px_per_meter()
+    def px_per_meter(self): return self._ppm
 
-    def _px_to_deg_matrix(self):
-        deg_per_px = self.deg_per_px()
-        return np.array(((0, deg_per_px), (-deg_per_px, 0)))
+    @staticmethod
+    def gps_to_point(lat: float, lon: float):
+        return lon / 360, -math.log(math.tan(math.radians(lat / 2 + 45))) / math.tau
 
-    # np.linalg.inv is EXPENSIVE
-    def _deg_to_px_matrix(self):
-        px_per_deg = 1/self.deg_per_px()
-        return np.array(((0, -px_per_deg), (px_per_deg, 0)))
+    @staticmethod
+    def point_to_gps(x: float, y: float):
+        return math.degrees(math.atan(math.exp(-y * math.tau))) * 2 - 90, x * 360
+
+    def gps_to_px(self, gps_point: (float, float)):
+        x, y = self.gps_to_point(*gps_point)
+        dist = np.array((x, y)) - self._center_point
+        dist_px = dist * _EARTH_CIRCUMFERENCE_M * self._ppm
+        return tuple((self.dimensions / 2) + dist_px)
     
     def px_to_gps(self, px_point: (int, int)):
         dist_px = np.array(px_point) - (self.dimensions / 2)
-        dist_deg = dist_px @ self._px_to_deg_matrix()
-        return tuple(self.center + dist_deg)
-    
-    def gps_to_px(self, gps_point: (float, float)):
-        dist_deg = np.array(gps_point) - self.center
-        dist_px = dist_deg @ self._deg_to_px_matrix()
-        return tuple((self.dimensions / 2) + dist_px)
+        dist = dist_px / _EARTH_CIRCUMFERENCE_M / self._ppm
+        x, y = dist + self._center_point
+        return self.point_to_gps(x, y)
 
     def get_rect(self):
         a, b = self.px_to_gps((0, 0)), self.px_to_gps(self.dimensions)
         return Rectangle(b[0], a[1], a[0], b[1])
 
     def move_point_to_pixel(self, gps_point: (float, float), pixel: (int, int)):
-        dist_deg, dist_deg_desired = self.px_to_gps(pixel) - self.center, np.array(gps_point) - self.center
-        new_center = self.center - (dist_deg - dist_deg_desired)
+        dist_deg, dist_deg_desired = self.px_to_gps(pixel) - self._center, np.array(gps_point) - self._center
+        new_center = self._center - (dist_deg - dist_deg_desired)
         self.center_at(new_center[0], new_center[1])
 
     def zoom_in(self, px_towards: (int, int)):

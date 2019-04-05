@@ -1,51 +1,76 @@
 from collections import defaultdict
+from functools import partial
 from xml.etree.ElementTree import Element
 
+from PIL import ImageFont
 from PIL.ImageDraw import ImageDraw
 
+from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
 
+def transform_shapes(shapes: list, camera: Camera):
+    return [[camera.gps_to_px(point) for point in shape] for shape in shapes]
+
+
+def element_to_polygons(element: Element, osm_helper: OsmHelper):
+    out = []
+    if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
+        out = osm_helper.multipolygon_to_wsps(element)
+    elif element.tag == 'way':
+        way = osm_helper.way_coordinates(element)
+        if len(way) >= 4 and way[0] == way[-1]:
+            out = [way[:-1]]
+    return out
+
+
+def element_to_lines(element: Element, osm_helper: OsmHelper):
+    out = []
+    if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
+        out = [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(element)]
+    elif element.tag == 'way':
+        out = [osm_helper.way_coordinates(element)]
+    return out
+
+
+def element_to_points(element: Element, osm_helper: OsmHelper):
+    out = []
+    if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
+        out = [point for polygon in osm_helper.multipolygon_to_polygons(element) for point in polygon]
+    elif element.tag == 'way':
+        out = osm_helper.way_coordinates(element)
+        if len(out) >= 2 and out[0] == out[-1]:
+            out = out[:-1]
+    else:
+        raise NotImplementedError
+    return out
+
+
 class ArtistArea:
     def __init__(self, fill='#fff', outline=None):
-        self.fill = fill
-        self.outline = outline
+        self.fill, self.outline = fill, outline
         self.filter = IsArea
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
         return self.filter.test(element, osm_helper)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return True  # TODO
+        return True
 
-    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
-        polys = []
-        outlines = []
-        for el in elements:
-            if el.tag == 'relation':
-                polys += osm_helper.multipolygon_to_wsps(el)
-                outlines += [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(el)]
-            elif el.tag == 'way':
-                way = osm_helper.way_coordinates(el)
-                polys.append(way[:-1])
-                outlines.append(way)
-            else:
-                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
-        for poly in polys:
-            image_draw.polygon([camera.gps_to_px(point) for point in poly], fill=self.fill)
-        if self.outline is not None:
-            for line in outlines:
-                image_draw.line([camera.gps_to_px(point) for point in line], fill=self.outline, width=1)
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
+        polygons, outlines = [], []
+        for element in elements:
+            polygons += element_to_polygons(element, osm_helper)
+            if self.outline is not None:
+                outlines += element_to_lines(element, osm_helper)
+        for polygon in transform_shapes(polygons, camera):
+            image_draw.polygon(polygon, fill=self.fill)
+        for outline in transform_shapes(outlines, camera):
+            image_draw.line(outline, fill=self.outline, width=1)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        points = []
-        if element.tag == 'relation':
-            points = [pt for poly in osm_helper.multipolygon_to_wsps(element) for pt in poly]
-        elif element.tag == 'way':
-            points = osm_helper.way_coordinates(element)
-        else:
-            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        points = element_to_points(element, osm_helper)
         if len(points) == 0:
             return []
         from operator import itemgetter
@@ -67,22 +92,15 @@ class ArtistWay:
         from camera import Camera  # FIXME yuck!
         return Camera(zoom_level=zoom).px_per_meter() >= self.min_ppm
 
-    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
         lines = []
-        for el in elements:
-            if el.tag == 'way':
-                lines.append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(el)])
-            else:
-                print('warn: unknown type:', el.tag, '(in', self.__class__.__qualname__, 'draw)')
-        for line in lines:
+        for element in elements:
+            lines += element_to_lines(element, osm_helper)
+        for line in transform_shapes(lines, camera):
             image_draw.line(line, fill=self.fill, width=self.width, joint='curve')
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        points = []
-        if element.tag == 'way':
-            points = osm_helper.way_coordinates(element)
-        else:
-            print('warn: unknown type:', element.tag, '(in', self.__class__.__qualname__, 'approx_location)')
+        points = element_to_points(element, osm_helper)
         if len(points) == 0:
             return []
         from operator import itemgetter

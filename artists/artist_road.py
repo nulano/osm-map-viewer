@@ -4,7 +4,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import ArtistArea, explode_tag_style_map
+from artists_util import ArtistArea, explode_tag_style_map, transform_shapes, element_to_lines, element_to_polygons
 from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
@@ -41,8 +41,6 @@ class ArtistRoad:
         if element.tag != 'way':
             return False
         tags = tag_dict(element)
-        if tags.get('area') == 'yes':
-            return False
         for tag, types in _road_types.items():
             try:
                 self.types[element] = types[tags[tag]]
@@ -56,6 +54,7 @@ class ArtistRoad:
         return Camera(zoom_level=zoom).px_per_meter() >= self.types[element].min_ppm
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
+        areas = defaultdict(list)
         layers = defaultdict(lambda: defaultdict(list))
         for element in elements:
             tags = tag_dict(element)
@@ -66,7 +65,13 @@ class ArtistRoad:
                     else -1 if tags.get('tunnel') == 'yes'\
                     else 0
             road_type: _road_type = self.types[element]
-            layers[layer][road_type].append([camera.gps_to_px(point) for point in osm_helper.way_coordinates(element)])
+            if tags.get('area') == 'yes':
+                areas[road_type] += transform_shapes(element_to_polygons(element, osm_helper), camera)
+            layers[layer][road_type] += transform_shapes(element_to_lines(element, osm_helper), camera)
+
+        for road_type in sorted(areas):
+            for road in areas[road_type]:
+                image_draw.polygon(road, fill=road_type.fill)
 
         def draw_roads(color, width, roads):
             if color is not None:
@@ -98,19 +103,6 @@ class ArtistRoad:
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
-class ArtistRoadArea(ArtistArea):
-    def __init__(self, types, fill, outline):
-        super().__init__(fill=fill, outline=outline)
-        self.types = types
-
-    def wants_element(self, element: Element, osm_helper: OsmHelper):
-        tags = tag_dict(element)
-        return ((element.tag == 'way' and tags.get('area') == 'yes')
-             or (element.tag == 'relation' and tags.get('type') == 'multipolygon')) \
-            and tags.get('highway') in self.types
-
-
 _all = [
-    ArtistRoadArea(('pedestrian',), '#aaa', '#999'),
     ArtistRoad()
 ]

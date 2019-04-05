@@ -39,6 +39,7 @@ class Renderer:
                     draw_pairs += [(element, artist)]
         nulano_gui_callback(status='initializing location_filter', current=len(artists))
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
+        self.zoom_cache = defaultdict(lambda: defaultdict(dict))
 
     def center_camera(self):
         self.camera.center_at((self.bounds.min_lat + self.bounds.max_lat)/2,
@@ -49,9 +50,17 @@ class Renderer:
         draw = PIL.ImageDraw.Draw(image)
         groups = defaultdict(list)
         for element, artist in self.filter.get_pairs(self.camera.get_rect()):
-            if artist.draws_at_zoom(element, self.camera.zoom_level, self.osm_helper):
+            zoom_filter = self.zoom_cache[artist][element]
+            try:
+                do_draw = zoom_filter[self.camera.zoom_level]
+            except KeyError:
+                zoom_filter[self.camera.zoom_level] = \
+                    artist.draws_at_zoom(element, self.camera.zoom_level, self.osm_helper)
+                do_draw = zoom_filter[self.camera.zoom_level]
+            if do_draw:
                 groups[artist] += [element]
         for i, (artist, elements) in enumerate(groups.items()):
             nulano_gui_callback(group='rendering', status=artist.__class__.__qualname__, current=i, maximum=len(groups))
             artist.draw(elements, self.osm_helper, self.camera, draw)
+        nulano_gui_callback(group='rendering', status='done', current=len(groups), maximum=len(groups))
         return image

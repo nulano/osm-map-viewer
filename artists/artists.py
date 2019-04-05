@@ -3,7 +3,7 @@ files = [
     'artist_land',
     'artist_property',
     'artist_road',
-    'artist_symbol'
+    'artist_label'
 ]
 
 

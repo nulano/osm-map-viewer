@@ -89,6 +89,14 @@ class ArtistWay:
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
 
 
+def get_font(name, size=16):
+    return ImageFont.truetype(font=name, size=size)
+
+
+font_bold = partial(get_font, 'fonts/IBMPlexSans-Bold.ttf')
+font_italic = partial(get_font, 'fonts/IBMPlexSansCondensed-MediumItalic.ttf')
+
+
 class ElementFilterBase:
     def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
         raise NotImplementedError

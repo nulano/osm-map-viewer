@@ -101,8 +101,3 @@ class ArtistRoad:
         from operator import itemgetter
         return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
-
-
-_all = [
-    ArtistRoad()
-]

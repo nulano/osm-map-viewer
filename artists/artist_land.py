@@ -1,4 +1,4 @@
-from artists_util import ArtistBase, Feature, StyleArea, StyleLine, FilterTrue, IsArea
+from artists_util import Base, Feature, StyleArea, StyleLine, FilterTrue, IsArea
 
 _land_types = [
     Feature('natural', 'bare_rock scree shingle rock stone',       StyleArea('#777', 0), FilterTrue),
@@ -22,14 +22,9 @@ _land_types = [
 ]
 
 
-class ArtistLand(ArtistBase):
+class ArtistLand(Base):
     def __init__(self):
         super().__init__(_land_types)
 
     # def _wants_element(self, tags: dict, element: Element, osm_helper: OsmHelper):
     #     return IsArea(tags, element, osm_helper) and super()._wants_element(tags, element, osm_helper)
-
-
-_all = [
-    ArtistLand()
-]

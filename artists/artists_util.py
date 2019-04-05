@@ -101,7 +101,7 @@ def explode_features(features: List[Feature]):
     return exploded
 
 
-class ArtistBase:
+class Base:
     def __init__(self, features):
         self.styles = explode_features(features)
         self.map = WeakKeyDictionary()

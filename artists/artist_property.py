@@ -1,33 +1,18 @@
-from artists_util import ArtistArea, TagMatches, TagPresent
+from artists_util import ArtistBase, Feature, StyleComp, StyleArea, StyleLine, FilterTrue
+
+_property_types = [
+    Feature('building', None,          StyleComp(StyleArea('#ddc', 0), StyleLine('#ccb', 1, float('inf'))), FilterTrue),
+    Feature('leisure', 'pitch track',  StyleComp(StyleArea('#df8', 0), StyleLine('#de8', 1, float('inf'))), FilterTrue),
+    Feature('leisure', 'playground',   StyleComp(StyleArea('#cfc', 0), StyleLine('#beb', 1, float('inf'))), FilterTrue),
+    Feature('amenity', 'parking',      StyleComp(StyleArea('#eef', 0)                                    ), FilterTrue),
+]
 
 
-class ArtistBuilding(ArtistArea):
+class ArtistProperty(ArtistBase):
     def __init__(self):
-        super().__init__(fill='#ddc', outline='#ccb')
-        self.filter += TagPresent('building')
-
-
-class ArtistSportArea(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#df8', outline='#de8')
-        self.filter += TagMatches('leisure', ('pitch', 'track'))
-
-
-class ArtistPlayground(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#cfc', outline='#beb')
-        self.filter += TagMatches('leisure', ('playground', ))
-
-
-class ArtistParking(ArtistArea):
-    def __init__(self):
-        super().__init__(fill='#eef')
-        self.filter += TagMatches('amenity', ('parking', ))
+        super().__init__(_property_types)
 
 
 _all = [
-    ArtistBuilding(),
-    ArtistSportArea(),
-    ArtistPlayground(),
-    ArtistParking()
+    ArtistProperty()
 ]

@@ -4,32 +4,33 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import ArtistArea, explode_tag_style_map, transform_shapes, element_to_lines, element_to_polygons
+from artists_util import explode_features, transform_shapes, element_to_lines, element_to_polygons, MappedFeature, \
+    FilterTrue
 from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
 
-_road_type = namedtuple('road_type',                 'ordinal width fill outline outline_bridge min_ppm')
-_road_types = explode_tag_style_map([
-    ('highway', 'tertiary_link',                _road_type(None, 5, '#fff', '#aaa', '#666', 0.050)),
-    ('highway', 'secondary_link',               _road_type(None, 5, '#fea', '#a94', '#666', 0.010)),
-    ('highway', 'primary_link',                 _road_type(None, 5, '#fda', '#a84', '#666', 0.000)),
-    ('highway', 'trunk_link',                   _road_type(None, 8, '#d60', '#830', '#666', 0.000)),
-    ('highway', 'motorway_link',                _road_type(None, 8, '#fa0', '#a40', '#666', 0.000)),
-    ('highway', 'footway steps path',           _road_type(None, 1, '#aaa', None,   None,   0.200)),
-    ('highway', 'pedestrian',                   _road_type(None, 2, '#aaa', None,   None,   0.200)),
-    ('highway', 'road',                         _road_type(None, 2, '#888', None,   None,   0.150)),
-    ('highway', 'service',                      _road_type(None, 2, '#fff', '#ccc', '#ccc', 0.150)),
-    ('highway', 'living_street',                _road_type(None, 5, '#ddd', None,   None,   0.150)),
-    ('highway', 'residential unclassified',     _road_type(None, 3, '#fff', '#ccc', '#ccc', 0.100)),
-    ('highway', 'tertiary',                     _road_type(None, 5, '#fff', '#aaa', '#666', 0.050)),
-    ('highway', 'secondary',                    _road_type(None, 5, '#fea', '#a94', '#666', 0.010)),
-    ('railway', 'tram',                         _road_type(None, 1, '#000', None,   None,   0.200)),
-    ('railway', 'rail narrow_gauge turntable',  _road_type(None, 1, '#000', None,   None,   0.000)),
-    ('highway', 'primary',                      _road_type(None, 5, '#fda', '#a84', '#666', 0.000)),
-    ('highway', 'trunk',                        _road_type(None, 8, '#d60', '#830', '#666', 0.000)),
-    ('highway', 'motorway',                     _road_type(None, 8, '#fa0', '#a40', '#666', 0.000))
+_road_type = namedtuple('road_type',                  'width fill outline outline_bridge min_ppm')
+_road_types = explode_features([
+    ('highway', 'tertiary_link',                _road_type(5, '#fff', '#aaa', '#666', 0.050), FilterTrue),
+    ('highway', 'secondary_link',               _road_type(5, '#fea', '#a94', '#666', 0.010), FilterTrue),
+    ('highway', 'primary_link',                 _road_type(5, '#fda', '#a84', '#666', 0.000), FilterTrue),
+    ('highway', 'trunk_link',                   _road_type(8, '#d60', '#830', '#666', 0.000), FilterTrue),
+    ('highway', 'motorway_link',                _road_type(8, '#fa0', '#a40', '#666', 0.000), FilterTrue),
+    ('highway', 'footway steps path',           _road_type(1, '#aaa', None,   None,   0.200), FilterTrue),
+    ('highway', 'pedestrian',                   _road_type(2, '#aaa', None,   None,   0.200), FilterTrue),
+    ('highway', 'road',                         _road_type(2, '#888', None,   None,   0.150), FilterTrue),
+    ('highway', 'service',                      _road_type(2, '#fff', '#ccc', '#ccc', 0.150), FilterTrue),
+    ('highway', 'living_street',                _road_type(5, '#ddd', None,   None,   0.150), FilterTrue),
+    ('highway', 'residential unclassified',     _road_type(3, '#fff', '#ccc', '#ccc', 0.100), FilterTrue),
+    ('highway', 'tertiary',                     _road_type(5, '#fff', '#aaa', '#666', 0.050), FilterTrue),
+    ('highway', 'secondary',                    _road_type(5, '#fea', '#a94', '#666', 0.010), FilterTrue),
+    ('railway', 'tram',                         _road_type(1, '#000', None,   None,   0.200), FilterTrue),
+    ('railway', 'rail narrow_gauge turntable',  _road_type(1, '#000', None,   None,   0.000), FilterTrue),
+    ('highway', 'primary',                      _road_type(5, '#fda', '#a84', '#666', 0.000), FilterTrue),
+    ('highway', 'trunk',                        _road_type(8, '#d60', '#830', '#666', 0.000), FilterTrue),
+    ('highway', 'motorway',                     _road_type(8, '#fa0', '#a40', '#666', 0.000), FilterTrue)
 ])
 
 
@@ -47,11 +48,10 @@ class ArtistRoad:
                 return True
             except KeyError:
                 pass
-        else:
-            return False
+        return False
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return Camera(zoom_level=zoom).px_per_meter() >= self.types[element].min_ppm
+        return Camera(zoom_level=zoom).px_per_meter() >= self.types[element].style.min_ppm
 
     def draw(self, elements: Element, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
         areas = defaultdict(list)
@@ -64,14 +64,14 @@ class ArtistRoad:
                 layer = 1 if tags.get('bridge') == 'yes'\
                     else -1 if tags.get('tunnel') == 'yes'\
                     else 0
-            road_type: _road_type = self.types[element]
+            road_type: MappedFeature = self.types[element]
             if tags.get('area') == 'yes':
                 areas[road_type] += transform_shapes(element_to_polygons(element, osm_helper), camera)
             layers[layer][road_type] += transform_shapes(element_to_lines(element, osm_helper), camera)
 
         for road_type in sorted(areas):
             for road in areas[road_type]:
-                image_draw.polygon(road, fill=road_type.fill)
+                image_draw.polygon(road, fill=road_type.style.fill)
 
         def draw_roads(color, width, roads):
             if color is not None:
@@ -82,17 +82,17 @@ class ArtistRoad:
             # draw bridge outline
             if layer > 0:
                 for road_type in sorted(layers[layer]):
-                    draw_roads(road_type.outline_bridge, road_type.width + 2, layers[layer][road_type])
+                    draw_roads(road_type.style.outline_bridge, road_type.style.width + 2, layers[layer][road_type])
 
             # draw surface outline
             if layer == 0:
                 for road_type in sorted(layers[layer]):
-                    draw_roads(road_type.outline, road_type.width + 2, layers[layer][road_type])
+                    draw_roads(road_type.style.outline, road_type.style.width + 2, layers[layer][road_type])
 
             # draw line
             if layer >= 0:
                 for road_type in sorted(layers[layer]):
-                    draw_roads(road_type.fill, road_type.width, layers[layer][road_type])
+                    draw_roads(road_type.style.fill, road_type.style.width, layers[layer][road_type])
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         points = osm_helper.way_coordinates(element)

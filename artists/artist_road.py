@@ -5,6 +5,7 @@ from xml.etree.ElementTree import Element
 from PIL.ImageDraw import ImageDraw
 
 from artists_util import ArtistArea, explode_tag_style_map
+from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
@@ -47,15 +48,14 @@ class ArtistRoad:
                 self.types[element] = types[tags[tag]]
                 return True
             except KeyError:
-                return False
+                pass
         else:
             return False
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        from camera import Camera  # FIXME yuck!
         return Camera(zoom_level=zoom).px_per_meter() >= self.types[element].min_ppm
 
-    def draw(self, elements: Element, osm_helper: OsmHelper, camera, image_draw: ImageDraw):
+    def draw(self, elements: Element, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
         layers = defaultdict(lambda: defaultdict(list))
         for element in elements:
             tags = tag_dict(element)

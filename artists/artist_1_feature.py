@@ -9,7 +9,7 @@ _land_types = [
     Feature('aeroway',  'runway',                           StyleLine('#aaa', 7, 0.000)),
     Feature('highway',  'footway pedestrian',               StyleArea('#ccc', 0, True)),
     Feature('building', None,                               StyleOutlined('#ddc', 8, '#ccb', 0.150)),
-    Feature('building', 'church catchedral chapel mosque '
+    Feature('building', 'church cathedral chapel mosque '
                         'synagogue temple shrine '
                         'hospital',                         StyleOutlined('#ccb', 0, '#bba', 0.150)),
     Feature('leisure',  'pitch track',                      StyleOutlined('#df8', 0, '#de8', 0.150)),

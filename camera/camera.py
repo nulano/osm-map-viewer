@@ -10,7 +10,7 @@ _TYPICAL_WINDOW_WIDTH = 800
 
 
 # https://wiki.python.org/moin/PythonDecoratorLibrary#Alternate_memoize_as_dict_subclass
-class memoize(dict):
+class _memoize(dict):
     def __init__(self, func):
         super().__init__()
         self.func = func
@@ -64,12 +64,12 @@ class Camera:
     def px_per_meter(self): return self._ppm
 
     @staticmethod
-    @memoize
+    @_memoize
     def gps_to_point(lat: float, lon: float):
         return lon / 360, -math.log(math.tan(math.radians(lat / 2 + 45))) / math.tau
 
     @staticmethod
-    @memoize
+    @_memoize
     def point_to_gps(x: float, y: float):
         return math.degrees(math.atan(math.exp(-y * math.tau))) * 2 - 90, x * 360
 

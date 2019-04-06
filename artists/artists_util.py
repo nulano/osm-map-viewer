@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict, namedtuple
 from typing import List
 from weakref import WeakKeyDictionary
@@ -16,6 +17,18 @@ def transform_shapes(shapes: list, camera: Camera):
     return [[camera.gps_to_px(point) for point in shape] for shape in shapes]
 
 
+def _memoize(func):
+    def memoized(element: Element, osm_helper, cache=WeakKeyDictionary()):
+        try:
+            return cache[element]
+        except KeyError:
+            cache[element] = out = func(element, osm_helper)
+            return out
+
+    return memoized
+
+
+@_memoize
 def element_to_polygons(element: Element, osm_helper: OsmHelper):
     if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
         return osm_helper.multipolygon_to_wsps(element)
@@ -26,6 +39,7 @@ def element_to_polygons(element: Element, osm_helper: OsmHelper):
     return []
 
 
+@_memoize
 def element_to_lines(element: Element, osm_helper: OsmHelper):
     if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
         return [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(element)]
@@ -34,6 +48,7 @@ def element_to_lines(element: Element, osm_helper: OsmHelper):
     return []
 
 
+@_memoize
 def element_to_points(element: Element, osm_helper: OsmHelper):
     if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
         return [point for polygon in osm_helper.multipolygon_to_polygons(element) for point in polygon]
@@ -47,12 +62,31 @@ def element_to_points(element: Element, osm_helper: OsmHelper):
     return []
 
 
-class StyleArea(namedtuple('StyleArea', 'fill min_area')):
+@_memoize
+def element_to_bbox(element: Element, osm_helper: OsmHelper):
+    points = element_to_points(element, osm_helper)
+    if len(points) == 0:
+        return None
+    from operator import itemgetter
+    bbox = Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                     max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])
+    return bbox
+
+
+temp = []
+
+
+class StyleArea(namedtuple('StyleArea', 'fill min_area req_area_tag')):
     def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
         if self.min_area == 0:
             return True
-        area = sum(map(polygon_area, transform_shapes(element_to_polygons(element, osm_helper), camera)))
-        return area >= self.min_area
+        bbox = element_to_bbox(element, osm_helper)
+        if bbox is None:
+            return False
+        raw_area = (bbox.max_lat - bbox.min_lat) * (bbox.max_lon - bbox.min_lon)
+        scale = (40000000 * camera.px_per_meter() / 360 / math.cos(math.radians(bbox.max_lat + bbox.min_lat) / 2)) ** 2
+        temp.append(raw_area * scale)
+        return raw_area * scale >= self.min_area
 
     def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
         polygons = []
@@ -92,7 +126,7 @@ class StylePoint(namedtuple('StylePoint', 'fill width min_ppm')):
 
 class StyleOutlined(namedtuple('StyleOutlined', 'fill min_area outline min_ppm')):
     @property
-    def area(self): return StyleArea(self.fill, self.min_area)
+    def area(self): return StyleArea(self.fill, self.min_area, False)
 
     @property
     def line(self): return StyleLine(self.outline, 1, self.min_ppm)
@@ -131,8 +165,8 @@ class Base:
         tags = tag_dict(element)
         for key, features in self.styles.items():
             try:
-                self.map[element] = features[tags[key]]
-                return True
+                self.map[element] = style = features[tags[key]]
+                return not isinstance(style.style, StyleArea) or not style.style.req_area_tag or tags.get('area') == 'yes'
             except KeyError:
                 pass
         return False
@@ -149,9 +183,5 @@ class Base:
             style.style.draw(layers[style], osm_helper, camera, image_draw)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
-        points = element_to_points(element, osm_helper)
-        if len(points) == 0:
-            return []
-        from operator import itemgetter
-        return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
-                          max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
+        bbox = element_to_bbox(element, osm_helper)
+        return [bbox] if bbox is not None else []

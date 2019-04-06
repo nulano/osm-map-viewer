@@ -1,4 +1,5 @@
 from queue import Queue
+from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import ElementTree, Element
 
 import geometry
@@ -17,6 +18,17 @@ def tag_dict(element: Element):
     return out
 
 
+def _memoize(func):
+    def memoized(osm_helper, element: Element, cache=WeakKeyDictionary()):
+        try:
+            return cache[element]
+        except KeyError:
+            cache[element] = out = func(osm_helper, element)
+            return out
+
+    return memoized
+
+
 class OsmHelper:
     def __init__(self, element_tree: ElementTree):
         self.element_tree = element_tree
@@ -28,27 +40,18 @@ class OsmHelper:
         for way in element_tree.getroot():
             if way.tag == 'way':
                 self.ways[way.attrib['id']] = way
-        self._cache_way_node_ids = {}
-        self._cache_multipolygon_to_polygons = {}
-        self._cache_multipolygon_to_wsps = {}
 
-    # cached
+    @_memoize
     def way_node_ids(self, way: Element):
-        id = way.attrib['id']
-        if id in self._cache_way_node_ids:
-            return self._cache_way_node_ids[id]
-        else:
-            out = []
-            for el in way:
-                if el.tag == 'nd':
-                    out.append(el.attrib['ref'])
-            self._cache_way_node_ids[id] = out
-            return out
+        out = []
+        for el in way:
+            if el.tag == 'nd':
+                out.append(el.attrib['ref'])
+        return out
 
     def way_nodes_for_ids(self, way: list):
         return [self.nodes[n] for n in way]
 
-    # TODO cache?
     def way_nodes(self, way: Element):
         return self.way_nodes_for_ids(self.way_node_ids(way))
 
@@ -58,15 +61,12 @@ class OsmHelper:
     def way_coordinates_for_ids(self, way: list):
         return self.way_coordinates_for_nodes(self.way_nodes_for_ids(way))
 
-    # TODO cache?
+    @_memoize
     def way_coordinates(self, way: Element):
         return self.way_coordinates_for_nodes(self.way_nodes(way))
 
-    # TODO cache?
+    @_memoize
     def multipolygon_to_polygons(self, multipolygon: Element):
-        id = multipolygon.attrib['id']
-        if id in self._cache_multipolygon_to_polygons:
-            return self._cache_multipolygon_to_polygons[id]
         out = []
         try:
             type = tag_dict(multipolygon).get('type', None)
@@ -78,7 +78,8 @@ class OsmHelper:
                 if el.tag == 'member' and el.attrib['type'] == 'way':
                     way = self.ways.get(el.attrib['ref'])
                     if way is None:
-                        nulano_log('multipolygon {} is missing way {}'.format(id, el.attrib['ref']), level=1)
+                        nulano_log('multipolygon {} is missing way {}'
+                                   .format(multipolygon.attrib['id'], el.attrib['ref']), level=1)
                     else:
                         ways.put(self.way_node_ids(way))
             ways_a, ways_b = {}, {}
@@ -110,19 +111,15 @@ class OsmHelper:
                         ways_a[a] = way
                         ways_b[b] = way
             if len(ways_a) is not 0:
-                nulano_log('multipolygon {} has {} unconnected way(s)'.format(id, len(ways_a)), level=1)
+                nulano_log('multipolygon {} has {} unconnected way(s)'
+                           .format(multipolygon.attrib['id'], len(ways_a)), level=1)
         except (KeyError, ValueError):
             from traceback import format_exc
             for line in format_exc(limit=2).splitlines():
                 nulano_log(line, level=2)
             out = []
-        self._cache_multipolygon_to_polygons[id] = out
         return out
 
+    @_memoize
     def multipolygon_to_wsps(self, multipolygon: Element):
-        id = multipolygon.attrib['id']
-        if id in self._cache_multipolygon_to_wsps:
-            return self._cache_multipolygon_to_wsps[id]
-        out = geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))
-        self._cache_multipolygon_to_wsps[id] = out
-        return out
+        return geometry.polygons_to_wsps(self.multipolygon_to_polygons(multipolygon))

@@ -39,8 +39,6 @@ class ArtistRoad:
         self.types = WeakKeyDictionary()
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
-        if element.tag != 'way':
-            return False
         tags = tag_dict(element)
         for tag, types in _road_types.items():
             try:
@@ -65,7 +63,8 @@ class ArtistRoad:
                     else -1 if tags.get('tunnel') == 'yes'\
                     else 0
             road_type: MappedFeature = self.types[element]
-            if tags.get('area') == 'yes':
+            if tags.get('area') == 'yes' or \
+                    (element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon'):
                 areas[road_type] += transform_shapes(element_to_polygons(element, osm_helper), camera)
             layers[layer][road_type] += transform_shapes(element_to_lines(element, osm_helper), camera)
 

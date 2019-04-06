@@ -46,6 +46,9 @@ class ArtistRoad:
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
         tags = tag_dict(element)
+        if tags.get('area') == 'yes' and \
+                not tags.get('railway') == 'turntable':
+            return False
         for tag, types in _road_types.items():
             try:
                 self.types[element] = types[tags[tag]]

@@ -214,7 +214,7 @@ class GuiWorker:
         self.gui.callback_render(self.renderer.render())
         center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
         log('-- rendering done')
-        self._status(status='lat={}, lon={}, zoom={}, px/m={}'
+        self._status(status='lat={0:.4f}, lon={1:.4f}, zoom={2}, px/m={3:.3f}'
                             .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
 
     @_worker_task

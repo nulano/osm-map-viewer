@@ -21,12 +21,16 @@ def log(*msg, level=0, **kwargs):
         print(['[info]', '[warn]', '[error]', '[critical]'][level], *msg, **kwargs)
 
 
-_status = namedtuple('gui_worker_status', ('progress', 'status_message'))
+def _worker_callback(func):
+    def wrap(self, *args, **kwargs):
+        self.queue_callback.put(lambda: func(self, *args, **kwargs))
+    return wrap
 
 
 class Gui:
     def __init__(self, file, dimensions, center=None, zoom=None):
-        self.worker = GuiWorker()
+        self.queue_callback = Queue()
+        self.worker = GuiWorker(self)
         self.worker.task_load_map(file)
         if center is not None:
             self.worker.task_center_gps(center, setdefault=True)
@@ -95,18 +99,28 @@ class Gui:
         self.running = True
         while self.running:
             self.root.update()
-            while not self.worker.queue_status.empty():
-                status: _status = self.worker.queue_status.get(block=False)
-                self.progress.set(status.progress)
-                self.status.config(text=status.status_message)
-            while not self.worker.queue_results.empty():
-                self._raw_image = self.worker.queue_results.get(block=False)
-                self._image = ImageTk.PhotoImage(self._raw_image)
-                self.panel.configure(image=self._image)
+            while not self.queue_callback.empty():
+                self.queue_callback.get(block=False)()
 
     def exit(self):
         self.worker(lambda: sys.exit(0))
         self.running = False
+
+    @_worker_callback
+    def callback_status(self, progress, message):
+        self.progress.set(progress)
+        self.status.config(text=message)
+
+    @_worker_callback
+    def callback_render(self, image):
+        self._raw_image = image
+        self._image = ImageTk.PhotoImage(image)
+        self.panel.configure(image=self._image)
+
+    @_worker_callback
+    def callback_crash(self, message):
+        messagebox.showerror(title='Render thread has crashed', message=message)
+        self.status.config(text='Render thread has crashed. Please restart the application.')
 
     @property
     def size(self):
@@ -150,24 +164,30 @@ def _worker_task(func):
 
 
 class GuiWorker:
-    def __init__(self):
+    def __init__(self, gui):
         self.queue_tasks = Queue()
-        self.queue_status = Queue()
-        self.queue_results = Queue()
 
         self.camera = None
         self.renderer = None
         self.settings = {}
 
+        self.gui = gui
         renderer.nulano_gui_callback = self._status
 
     def __call__(self, task):
         self.queue_tasks.put(task)
 
     def run(self):
-        while True:
-            self._process_tasks()
-            self._render()
+        try:
+            while True:
+                self._process_tasks()
+                self._render()
+        except SystemExit:
+            raise
+        except:
+            import traceback
+            self.gui.callback_crash(traceback.format_exc())
+            raise
 
     def _status(self, group: str = None, status: str = None, current: int = 0, maximum: int = 0):
         message = None if maximum == 0 else '{}/{}'.format(current, maximum)
@@ -181,7 +201,7 @@ class GuiWorker:
         if message is not None:
             log(message)
 
-        self.queue_status.put(_status(current / maximum if maximum != 0 else current, message))
+        self.gui.callback_status(current / maximum if maximum != 0 else current, message)
     
     def _process_tasks(self):
         while True:
@@ -191,7 +211,7 @@ class GuiWorker:
     
     def _render(self):
         log('-- rendering...')
-        self.queue_results.put(self.renderer.render())
+        self.gui.callback_render(self.renderer.render())
         center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
         log('-- rendering done')
         self._status(status='lat={}, lon={}, zoom={}, px/m={}'

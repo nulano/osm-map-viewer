@@ -3,7 +3,7 @@ files = [
     'artist_0_land',
     'artist_1_feature',
     'artist_4_road',
-    # 'artist_7_symbol'
+    'artist_7_symbol'
 ]
 
 

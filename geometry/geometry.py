@@ -29,6 +29,15 @@ def polygon_area(polygon: List[_Point]):
     return 0.5 * np.abs(_polygon_raw_area(_norm_polygon(polygon)))
 
 
+def polygon_centroid(polygon: List[_Point]):
+    polygon = _norm_polygon(polygon)
+    # this function very sensitive to rounding errors, shift whole polygon to near (0, 0), then shift result back:
+    offset, polygon = polygon[0], polygon - polygon[0]
+    return np.sum((polygon[:-1] + polygon[1:]) *
+                  ((polygon[:-1, 0] * polygon[1:, 1]) - (polygon[1:, 0] * polygon[:-1, 1]))[:, None], axis=0) \
+        / 3 / _polygon_raw_area(polygon) + offset
+
+
 def _ray_trace(point: np.ndarray, polygon: np.ndarray):
     poly = polygon - point
     hits = []

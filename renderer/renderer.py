@@ -49,7 +49,7 @@ class Renderer:
 
     def render(self):
         image = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
-        draw = PIL.ImageDraw.Draw(image)
+        draw = PIL.ImageDraw.Draw(image, 'RGBA')
         groups = defaultdict(list)
 
         nulano_gui_callback(group='rendering', status='location filter', current=0)

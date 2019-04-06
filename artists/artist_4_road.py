@@ -91,6 +91,11 @@ class ArtistRoad:
                 for road_type in sorted(layers[layer]):
                     draw_roads(road_type.style.outline, road_type.style.width + 2, layers[layer][road_type])
 
+            # draw tunnel line
+            if layer < 0:
+                for road_type in sorted(layers[layer]):
+                    draw_roads(road_type.style.fill + '6', road_type.style.width, layers[layer][road_type])
+
             # draw line
             if layer >= 0:
                 for road_type in sorted(layers[layer]):

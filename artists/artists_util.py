@@ -63,15 +63,16 @@ class StyleArea(namedtuple('StyleArea', 'fill min_area')):
 
 
 class StyleLine(namedtuple('StyleLine', 'fill width min_ppm')):
-    def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
+    def draws_at_zoom(self, element, camera: Camera, osm_helper: OsmHelper):
         return camera.px_per_meter() >= self.min_ppm
 
     def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
-        lines = []
-        for element in elements:
-            lines += element_to_lines(element, osm_helper)
-        for line in transform_shapes(lines, camera):
-            image_draw.line(line, fill=self.fill, width=self.width, joint='curve')
+        if self.draws_at_zoom(None, camera, osm_helper):
+            lines = []
+            for element in elements:
+                lines += element_to_lines(element, osm_helper)
+            for line in transform_shapes(lines, camera):
+                image_draw.line(line, fill=self.fill, width=self.width, joint='curve')
 
 
 def StyleComp(*styles):

@@ -85,20 +85,25 @@ class StylePoint(namedtuple('StylePoint', 'fill width min_ppm')):
             for element in elements:
                 points += element_to_points(element, osm_helper)
             for x, y in transform_shapes([points], camera)[0]:
-                x1, x2 = x - (self.width // 2), x + self.width - (self.width // 2)
-                y1, y2 = y - (self.width // 2), y + self.width - (self.width // 2)
+                x1, x2 = x - self.width / 2, x + self.width / 2
+                y1, y2 = y - self.width / 2, y + self.width / 2
                 image_draw.ellipse([(x1, y1), (x2, y2)], fill=self.fill, width=0)
 
 
-def StyleComp(*styles):
-    class _StyleComp(namedtuple('StyleComp', 'styles')):
-        def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
-            return any(map(lambda s: s.draws_at_zoom(element, camera, osm_helper), self.styles))
+class StyleOutlined(namedtuple('StyleOutlined', 'fill min_area outline min_ppm')):
+    @property
+    def area(self): return StyleArea(self.fill, self.min_area)
 
-        def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
-            for style in self.styles:
-                style.draw(elements, osm_helper, camera, image_draw)
-    return _StyleComp(tuple(styles))
+    @property
+    def line(self): return StyleLine(self.outline, 1, self.min_ppm)
+
+    def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
+        return self.line.draws_at_zoom(element, camera, osm_helper) or \
+               self.area.draws_at_zoom(element, camera, osm_helper)
+
+    def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
+        self.area.draw(elements, osm_helper, camera, image_draw)
+        self.line.draw(elements, osm_helper, camera, image_draw)
 
 
 Feature = namedtuple('Feature', 'key tags style')

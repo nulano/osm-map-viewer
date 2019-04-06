@@ -1,6 +1,6 @@
 import math
 from collections import defaultdict, namedtuple
-from typing import List
+from typing import List, Tuple, Union
 from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import Element
 
@@ -8,12 +8,11 @@ from PIL import ImageFont
 from PIL.ImageDraw import ImageDraw
 
 from camera import Camera
-from geometry import polygon_area
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
 
-def transform_shapes(shapes: list, camera: Camera):
+def transform_shapes(shapes: List[List[Tuple[float, float]]], camera: Camera):
     return [[camera.gps_to_px(point) for point in shape] for shape in shapes]
 
 
@@ -31,7 +30,7 @@ def _memoize(func):
 @_memoize
 def element_to_polygons(element: Element, osm_helper: OsmHelper):
     if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
-        return osm_helper.multipolygon_to_wsps(element)
+        return [polygon[:-1] for polygon in osm_helper.multipolygon_to_wsps(element)]
     elif element.tag == 'way':
         way = osm_helper.way_coordinates(element)
         if len(way) >= 4 and way[0] == way[-1]:
@@ -42,7 +41,7 @@ def element_to_polygons(element: Element, osm_helper: OsmHelper):
 @_memoize
 def element_to_lines(element: Element, osm_helper: OsmHelper):
     if element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon':
-        return [polygon + [polygon[0]] for polygon in osm_helper.multipolygon_to_polygons(element)]
+        return osm_helper.multipolygon_to_polygons(element)
     elif element.tag == 'way':
         return [osm_helper.way_coordinates(element)]
     return []
@@ -73,9 +72,6 @@ def element_to_bbox(element: Element, osm_helper: OsmHelper):
     return bbox
 
 
-temp = []
-
-
 class StyleArea(namedtuple('StyleArea', 'fill min_area req_area_tag')):
     def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
         if self.min_area == 0:
@@ -85,7 +81,6 @@ class StyleArea(namedtuple('StyleArea', 'fill min_area req_area_tag')):
             return False
         raw_area = (bbox.max_lat - bbox.min_lat) * (bbox.max_lon - bbox.min_lon)
         scale = (40000000 * camera.px_per_meter() / 360 / math.cos(math.radians(bbox.max_lat + bbox.min_lat) / 2)) ** 2
-        temp.append(raw_area * scale)
         return raw_area * scale >= self.min_area
 
     def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
@@ -97,7 +92,7 @@ class StyleArea(namedtuple('StyleArea', 'fill min_area req_area_tag')):
 
 
 class StyleLine(namedtuple('StyleLine', 'fill width min_ppm')):
-    def draws_at_zoom(self, element, camera: Camera, osm_helper: OsmHelper):
+    def draws_at_zoom(self, element: Union[Element, None], camera: Camera, osm_helper: OsmHelper):
         return camera.px_per_meter() >= self.min_ppm
 
     def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
@@ -110,7 +105,7 @@ class StyleLine(namedtuple('StyleLine', 'fill width min_ppm')):
 
 
 class StylePoint(namedtuple('StylePoint', 'fill width min_ppm')):
-    def draws_at_zoom(self, element, camera: Camera, osm_helper: OsmHelper):
+    def draws_at_zoom(self, element: Union[Element, None], camera: Camera, osm_helper: OsmHelper):
         return camera.px_per_meter() >= self.min_ppm
 
     def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):

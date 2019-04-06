@@ -67,12 +67,12 @@ class OsmHelper:
 
     @_memoize
     def multipolygon_to_polygons(self, multipolygon: Element):
-        out = []
         try:
-            type = tag_dict(multipolygon).get('type', None)
-            if type != 'multipolygon':
+            out = []
+            element_type = tag_dict(multipolygon).get('type', None)
+            if element_type != 'multipolygon':
                 raise ValueError('invalid multipolygon: {}[{}].type={}'
-                                 .format(multipolygon.tag, multipolygon.attrib['id'], type), level=2)
+                                 .format(multipolygon.tag, multipolygon.attrib['id'], element_type), level=2)
             ways = Queue()
             for el in multipolygon:
                 if el.tag == 'member' and el.attrib['type'] == 'way':
@@ -86,7 +86,7 @@ class OsmHelper:
             while not ways.empty():
                 way = ways.get(block=False)
                 if way[0] == way[-1]:
-                    out.append(self.way_coordinates_for_ids(way[:-1]))
+                    out.append(self.way_coordinates_for_ids(way))
                 else:
                     if way[-1] < way[0]:
                         way.reverse()
@@ -113,12 +113,12 @@ class OsmHelper:
             if len(ways_a) is not 0:
                 nulano_log('multipolygon {} has {} unconnected way(s)'
                            .format(multipolygon.attrib['id'], len(ways_a)), level=1)
+            return out
         except (KeyError, ValueError):
             from traceback import format_exc
             for line in format_exc(limit=2).splitlines():
                 nulano_log(line, level=2)
-            out = []
-        return out
+        return []
 
     @_memoize
     def multipolygon_to_wsps(self, multipolygon: Element):

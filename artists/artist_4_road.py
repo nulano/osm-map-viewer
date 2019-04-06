@@ -4,8 +4,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import explode_features, transform_shapes, element_to_lines, element_to_polygons, MappedFeature, \
-    FilterTrue
+from artists_util import explode_features, transform_shapes, element_to_lines, element_to_polygons, MappedFeature
 from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
@@ -13,24 +12,31 @@ from osm_helper import OsmHelper, tag_dict
 
 _road_type = namedtuple('road_type',                  'width fill outline outline_bridge min_ppm')
 _road_types = explode_features([
-    ('highway', 'tertiary_link',                _road_type(5, '#fff', '#aaa', '#666', 0.050), FilterTrue),
-    ('highway', 'secondary_link',               _road_type(5, '#fea', '#a94', '#666', 0.010), FilterTrue),
-    ('highway', 'primary_link',                 _road_type(5, '#fda', '#a84', '#666', 0.000), FilterTrue),
-    ('highway', 'trunk_link',                   _road_type(8, '#d60', '#830', '#666', 0.000), FilterTrue),
-    ('highway', 'motorway_link',                _road_type(8, '#fa0', '#a40', '#666', 0.000), FilterTrue),
-    ('highway', 'footway steps path',           _road_type(1, '#aaa', None,   None,   0.200), FilterTrue),
-    ('highway', 'pedestrian',                   _road_type(2, '#aaa', None,   None,   0.200), FilterTrue),
-    ('highway', 'road',                         _road_type(2, '#888', None,   None,   0.150), FilterTrue),
-    ('highway', 'service',                      _road_type(2, '#fff', '#ccc', '#ccc', 0.150), FilterTrue),
-    ('highway', 'living_street',                _road_type(5, '#ddd', None,   None,   0.150), FilterTrue),
-    ('highway', 'residential unclassified',     _road_type(3, '#fff', '#ccc', '#ccc', 0.100), FilterTrue),
-    ('highway', 'tertiary',                     _road_type(5, '#fff', '#aaa', '#666', 0.050), FilterTrue),
-    ('highway', 'secondary',                    _road_type(5, '#fea', '#a94', '#666', 0.010), FilterTrue),
-    ('railway', 'tram',                         _road_type(1, '#000', None,   None,   0.200), FilterTrue),
-    ('railway', 'rail narrow_gauge turntable',  _road_type(1, '#000', None,   None,   0.000), FilterTrue),
-    ('highway', 'primary',                      _road_type(5, '#fda', '#a84', '#666', 0.000), FilterTrue),
-    ('highway', 'trunk',                        _road_type(8, '#d60', '#830', '#666', 0.000), FilterTrue),
-    ('highway', 'motorway',                     _road_type(8, '#fa0', '#a40', '#666', 0.000), FilterTrue)
+    # link roads
+    ('highway', 'tertiary_link',                _road_type(5, '#fff', '#aaa', '#666', 0.050)),
+    ('highway', 'secondary_link',               _road_type(5, '#fea', '#a94', '#666', 0.010)),
+    ('highway', 'primary_link',                 _road_type(5, '#fda', '#a84', '#666', 0.000)),
+    ('highway', 'trunk_link',                   _road_type(8, '#d60', '#830', '#666', 0.000)),
+    ('highway', 'motorway_link',                _road_type(8, '#fa0', '#a40', '#666', 0.000)),
+
+    # small / pedestrian roads
+    ('highway', 'footway steps path',           _road_type(1, '#aaa', None,   None,   0.200)),
+    ('highway', 'pedestrian',                   _road_type(2, '#aaa', None,   None,   0.200)),
+    ('highway', 'road',                         _road_type(2, '#888', None,   None,   0.150)),
+    ('highway', 'service',                      _road_type(2, '#fff', '#ccc', '#ccc', 0.150)),
+    ('highway', 'living_street',                _road_type(5, '#ddd', None,   None,   0.150)),
+    ('highway', 'residential unclassified',     _road_type(3, '#fff', '#ccc', '#ccc', 0.100)),
+
+    # large roads
+    ('highway', 'tertiary',                     _road_type(5, '#fff', '#aaa', '#666', 0.050)),
+    ('highway', 'secondary',                    _road_type(5, '#fea', '#a94', '#666', 0.010)),
+    ('highway', 'primary',                      _road_type(5, '#fda', '#a84', '#666', 0.000)),
+    ('highway', 'trunk',                        _road_type(8, '#d60', '#830', '#666', 0.000)),
+    ('highway', 'motorway',                     _road_type(8, '#fa0', '#a40', '#666', 0.000)),
+
+    # railroads
+    ('railway', 'tram',                         _road_type(1, '#444', None,   None,   0.100)),
+    ('railway', 'rail narrow_gauge turntable',  _road_type(1, '#222', None,   None,   0.000)),
 ])
 
 
@@ -63,9 +69,6 @@ class ArtistRoad:
                     else -1 if tags.get('tunnel') == 'yes'\
                     else 0
             road_type: MappedFeature = self.types[element]
-            if tags.get('area') == 'yes' or \
-                    (element.tag == 'relation' and tag_dict(element).get('type') == 'multipolygon'):
-                areas[road_type] += transform_shapes(element_to_polygons(element, osm_helper), camera)
             layers[layer][road_type] += transform_shapes(element_to_lines(element, osm_helper), camera)
 
         for road_type in sorted(areas):

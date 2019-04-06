@@ -1,9 +1,9 @@
 
 files = [
-    'artist_land',
-    'artist_property',
-    'artist_road',
-    'artist_symbol'
+    'artist_0_land',
+    'artist_1_feature',
+    'artist_4_road',
+    # 'artist_7_symbol'
 ]
 
 

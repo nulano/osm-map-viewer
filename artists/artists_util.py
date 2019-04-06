@@ -75,6 +75,21 @@ class StyleLine(namedtuple('StyleLine', 'fill width min_ppm')):
                 image_draw.line(line, fill=self.fill, width=self.width, joint='curve')
 
 
+class StylePoint(namedtuple('StylePoint', 'fill width min_ppm')):
+    def draws_at_zoom(self, element, camera: Camera, osm_helper: OsmHelper):
+        return camera.px_per_meter() >= self.min_ppm
+
+    def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
+        if self.draws_at_zoom(None, camera, osm_helper):
+            points = []
+            for element in elements:
+                points += element_to_points(element, osm_helper)
+            for x, y in transform_shapes([points], camera)[0]:
+                x1, x2 = x - (self.width // 2), x + self.width - (self.width // 2)
+                y1, y2 = y - (self.width // 2), y + self.width - (self.width // 2)
+                image_draw.ellipse([(x1, y1), (x2, y2)], fill=self.fill, width=0)
+
+
 def StyleComp(*styles):
     class _StyleComp(namedtuple('StyleComp', 'styles')):
         def draws_at_zoom(self, element: Element, camera: Camera, osm_helper: OsmHelper):
@@ -86,14 +101,14 @@ def StyleComp(*styles):
     return _StyleComp(tuple(styles))
 
 
-Feature = namedtuple('Feature', 'key tags style additional_filter')
-MappedFeature = namedtuple('MappedFeature', 'ordinal style additional_filter')
+Feature = namedtuple('Feature', 'key tags style')
+MappedFeature = namedtuple('MappedFeature', 'ordinal style')
 
 
 def explode_features(features: List[Feature]):
     exploded = defaultdict(dict)
-    for i, (key, tags, style, additional) in enumerate(features):
-        mapped = MappedFeature(i, style, additional)
+    for i, (key, tags, style) in enumerate(features):
+        mapped = MappedFeature(i, style)
         if tags is None:
             exploded[key] = defaultdict(lambda m=mapped: m)
         else:
@@ -114,10 +129,8 @@ class Base:
     def _wants_element(self, tags: dict, element: Element, osm_helper: OsmHelper):
         for key, features in self.styles.items():
             try:
-                style: MappedFeature = features[tags[key]]
-                if style and style.additional_filter(tags, element, osm_helper):
-                    self.map[element] = style
-                    return True
+                self.map[element] = features[tags[key]]
+                return True
             except KeyError:
                 pass
         return False
@@ -140,111 +153,3 @@ class Base:
         from operator import itemgetter
         return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
-
-
-class ElementFilterBase:
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        raise NotImplementedError
-
-    # convenience for testing
-    def test(self, element: Element, osm_helper: OsmHelper):
-        return self(tag_dict(element), element, osm_helper)
-
-    def And(self, other):
-        class AndFilter(ElementFilterBase):
-            def __init__(self, a, b):
-                self.a, self.b = a, b
-
-            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-                return self.a(tags, element, osm_helper) and self.b(tags, element, osm_helper)
-
-        return AndFilter(self, other)
-
-    def Or(self, other):
-        class OrFilter(ElementFilterBase):
-            def __init__(self, a, b):
-                self.a, self.b = a, b
-
-            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-                return self.a(tags, element, osm_helper) or self.b(tags, element, osm_helper)
-
-        return OrFilter(self, other)
-
-    def Not(self):
-        class NotFilter(ElementFilterBase):
-            def __init__(self, wrap):
-                self.wrap = wrap
-
-            def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-                return not self.wrap(tags, element, osm_helper)
-
-        return NotFilter(self)
-
-    # convenience for +=
-    def __add__(self, other): return self.And(other)
-
-
-class ElementFilter(ElementFilterBase):
-    def __init__(self, func=lambda t, e, o: True):
-        self.func = func
-
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return self.func(tags, element, osm_helper)
-
-
-class _IsNode(ElementFilterBase):
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return element.tag == 'node'
-
-
-class _IsWay(ElementFilterBase):
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return element.tag == 'way'
-
-
-class _IsArea(ElementFilterBase):
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        if element.tag == 'way':
-            nodes = element.findall('nd')
-            return nodes[0].get('ref') == nodes[-1].get('ref')
-        else:
-            return element.tag == 'relation' and tags.get('type') == 'multipolygon'
-
-
-class _FilterTrue(ElementFilterBase):
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return True
-
-    def test(self, element: Element, osm_helper: OsmHelper):
-        return True
-
-
-class _FilterFalse(ElementFilterBase):
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return False
-
-    def test(self, element: Element, osm_helper: OsmHelper):
-        return False
-
-
-IsNode = _IsNode()
-IsWay = _IsWay()
-IsArea = _IsArea()
-FilterTrue = _FilterTrue()
-FilterFalse = _FilterFalse()
-
-
-class TagMatches(ElementFilterBase):
-    def __init__(self, tag, values):
-        self.tag, self.values = tag, values
-
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return tags.get(self.tag) in self.values
-
-
-class TagPresent(ElementFilterBase):
-    def __init__(self, tag):
-        self.tag = tag
-
-    def __call__(self, tags: dict, element: Element, osm_helper: OsmHelper):
-        return self.tag in tags

@@ -3,7 +3,7 @@ import tkinter as tk
 from collections import namedtuple
 from queue import Queue
 from threading import Thread
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from xml.etree import ElementTree
 import sys
 
@@ -37,6 +37,7 @@ class Gui:
         self._raw_image, self._image = None, None
 
         self.root = tk.Tk()
+        self.root.winfo_toplevel().title('OSM Map Viewer')
         self.root.geometry('x'.join(map(str, dimensions)))
         self.root.bind('<Destroy>', func=lambda e: self.exit() if e.widget == self.root else None)
 
@@ -65,14 +66,17 @@ class Gui:
         self.menu = tk.Menu(self.root)
 
         self.menu_file = tk.Menu(self.menu, tearoff=0)
-        self.menu_file.add_command(label="Exit", command=self.root.destroy)
+        self.menu_file.add_command(label='Open...', command=self.menu_file_open)
+        self.menu_file.add_separator()
+        self.menu_file.add_command(label='Exit', command=self.root.destroy)
         self.menu.add_cascade(label='File', menu=self.menu_file)
 
         self.menu_view = tk.Menu(self.menu, tearoff=0)
         self.menu_view.add_command(label="Recenter", command=self.worker.task_center_restore)
-        self.menu_view.add_command(label="Reset Zoom", command=self.worker.task_zoom_restore)
+        self.menu_view.add_separator()
         self.menu_view.add_command(label="Zoom In", command=lambda: self.worker.task_zoom_in(self.size / 2))
         self.menu_view.add_command(label="Zoom Out", command=lambda: self.worker.task_zoom_out(self.size / 2))
+        self.menu_view.add_command(label="Reset Zoom", command=self.worker.task_zoom_restore)
         self.menu.add_cascade(label='View', menu=self.menu_view)
 
         self.menu_help = tk.Menu(self.menu, tearoff=0)
@@ -107,6 +111,13 @@ class Gui:
     @property
     def size(self):
         return np.array((self.panel.winfo_width(), self.panel.winfo_height()))
+
+    def menu_file_open(self):
+        file = filedialog.askopenfilename(initialdir='maps', title='Open Map...',
+                                          filetypes=(('XML Map File', '*.osm'), ('All Files', '*.*')))
+        if file:
+            self.worker.task_load_map(file)
+            self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
 
     @staticmethod
     def menu_help_about():

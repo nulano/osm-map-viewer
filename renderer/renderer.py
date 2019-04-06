@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Union
 from xml.etree.ElementTree import ElementTree
 
 import PIL.Image
@@ -12,7 +13,7 @@ from artists import get_artists
 
 
 # fallback for incompatible gui implementations
-def nulano_gui_callback(group: str = 'info', status: str = 'unknown', current: int = 0, maximum: int = 0):
+def nulano_gui_callback(group: str = 'info', status: str = 'unknown', current: Union[int, float] = 0, maximum: int = 0):
     print('{}: {}/{}, ({})'.format(group, current, maximum, status))
 
 
@@ -31,13 +32,14 @@ class Renderer:
             raise AssertionError('no bounds tag in element_tree')
 
         draw_pairs = []
-        artists = get_artists()
-        for i, artist in enumerate(artists):
-            nulano_gui_callback(group='loading map', status=artist.__class__.__qualname__, current=i, maximum=len(artists))
+        self.artists = get_artists()
+        for i, artist in enumerate(self.artists):
+            nulano_gui_callback(group='loading map', status=artist.__class__.__qualname__, current=i+1, maximum=len(self.artists))
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
-        nulano_gui_callback(status='initializing location_filter', current=len(artists))
+
+        nulano_gui_callback(status='initializing location filter', current=1)
         self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
         self.zoom_cache = defaultdict(lambda: defaultdict(dict))
 
@@ -49,7 +51,12 @@ class Renderer:
         image = PIL.Image.new('RGB', (self.camera.px_width, self.camera.px_height), '#eed')
         draw = PIL.ImageDraw.Draw(image)
         groups = defaultdict(list)
-        for element, artist in self.filter.get_pairs(self.camera.get_rect()):
+
+        nulano_gui_callback(group='rendering', status='location filter', current=0)
+        pairs = self.filter.get_pairs(self.camera.get_rect())
+
+        nulano_gui_callback(group='rendering', status='zoom filter', current=(0.5/len(self.artists)))
+        for element, artist in pairs:
             zoom_filter = self.zoom_cache[artist][element]
             try:
                 do_draw = zoom_filter[self.camera.zoom_level]
@@ -59,8 +66,10 @@ class Renderer:
                 do_draw = zoom_filter[self.camera.zoom_level]
             if do_draw:
                 groups[artist] += [element]
+
         for i, (artist, elements) in enumerate(groups.items()):
-            nulano_gui_callback(group='rendering', status=artist.__class__.__qualname__, current=i, maximum=len(groups))
+            nulano_gui_callback(group='rendering', status=artist.__class__.__qualname__, current=i+1, maximum=len(groups))
             artist.draw(elements, self.osm_helper, self.camera, draw)
+
         nulano_gui_callback(group='rendering', status='done', current=len(groups), maximum=len(groups))
         return image

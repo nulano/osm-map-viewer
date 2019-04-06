@@ -129,9 +129,6 @@ class Base:
 
     def wants_element(self, element: Element, osm_helper: OsmHelper):
         tags = tag_dict(element)
-        return self._wants_element(tags, element, osm_helper)
-
-    def _wants_element(self, tags: dict, element: Element, osm_helper: OsmHelper):
         for key, features in self.styles.items():
             try:
                 self.map[element] = features[tags[key]]

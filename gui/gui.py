@@ -1,6 +1,5 @@
 import argparse
 import tkinter as tk
-from collections import namedtuple
 from queue import Queue
 from threading import Thread
 from tkinter import ttk, messagebox, filedialog
@@ -19,6 +18,24 @@ def log(*msg, level=0, **kwargs):
     global loglevel
     if level >= loglevel:
         print(['[info]', '[warn]', '[error]', '[critical]'][level], *msg, **kwargs)
+
+
+def start():
+    global loglevel, arg_parser
+    arg_parser = argparse.ArgumentParser(description='OSM Map viewer GUI made by Nulano (2019)')
+    arg_parser.add_argument('-f', '--map', default='maps/bratislava.osm', help='the OpenStreetMap xml file to use', dest='file')
+    arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
+    arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')
+    arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('X', 'Y'))
+    arg_parser.add_argument('--center', nargs=2, type=float, help='center map at %(metavar) at startup', metavar=('LAT', 'LON'))
+    arg_parser.add_argument('--zoom', type=int, help='zoom map at level %(metavar) at startup', metavar='ZOOM')
+    args = arg_parser.parse_args()
+
+    loglevel = args.loglevel
+    osm_helper.nulano_log = log
+
+    gui = Gui(file=args.file, dimensions=args.dimensions, center=args.center, zoom=args.zoom)
+    gui.start()
 
 
 def _worker_callback(func):
@@ -133,15 +150,13 @@ class Gui:
             self.worker.task_load_map(file)
             self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
 
-    @staticmethod
-    def menu_help_about():
+    def menu_help_about(self):
         if arg_parser is None:
             messagebox.showinfo(title='About', message='Map viewer GUI made by Nulano.')
         else:
             messagebox.showinfo(title='About', message=arg_parser.description)
 
-    @staticmethod
-    def menu_help_controls():
+    def menu_help_controls(self):
         messagebox.showinfo(title='Controls', message=
                             'Left-click to zoom in to point\n'
                             'Right-click to zoom out to point\n'
@@ -149,8 +164,7 @@ class Gui:
                             '<P> and <O> to zoom in and out\n'
                             'Arrow keys to move around')
 
-    @staticmethod
-    def menu_help_args():
+    def menu_help_args(self):
         if arg_parser is None:
             log('arg_parser is None', level=1)
         else:
@@ -276,17 +290,4 @@ class GuiWorker:
 
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(description='OSM Map viewer GUI made by Nulano (2019)')
-    arg_parser.add_argument('-f', '--map', default='maps/bratislava.osm', help='the OpenStreetMap xml file to use', dest='file')
-    arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
-    arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')
-    arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('X', 'Y'))
-    arg_parser.add_argument('--center', nargs=2, type=float, help='center map at %(metavar) at startup', metavar=('LAT', 'LON'))
-    arg_parser.add_argument('--zoom', type=int, help='zoom map at level %(metavar) at startup', metavar='ZOOM')
-    args = arg_parser.parse_args()
-
-    loglevel = args.loglevel
-    osm_helper.nulano_log = log
-
-    gui = Gui(file=args.file, dimensions=args.dimensions, center=args.center, zoom=args.zoom)
-    gui.start()
+    start()

@@ -9,6 +9,20 @@ _EARTH_CIRCUMFERENCE_M = 40000000
 _TYPICAL_WINDOW_WIDTH = 800
 
 
+# https://wiki.python.org/moin/PythonDecoratorLibrary#Alternate_memoize_as_dict_subclass
+class memoize(dict):
+    def __init__(self, func):
+        super().__init__()
+        self.func = func
+
+    def __call__(self, *args):
+        return self[args]
+
+    def __missing__(self, key):
+        result = self[key] = self.func(*key)
+        return result
+
+
 def get_typical_view_size(zoom_level: int):
     width_m = _TYPICAL_WINDOW_WIDTH * 200 / (1.5 ** zoom_level)
     return 360 * (width_m / _EARTH_CIRCUMFERENCE_M)
@@ -50,10 +64,12 @@ class Camera:
     def px_per_meter(self): return self._ppm
 
     @staticmethod
+    @memoize
     def gps_to_point(lat: float, lon: float):
         return lon / 360, -math.log(math.tan(math.radians(lat / 2 + 45))) / math.tau
 
     @staticmethod
+    @memoize
     def point_to_gps(x: float, y: float):
         return math.degrees(math.atan(math.exp(-y * math.tau))) * 2 - 90, x * 360
 

@@ -6,3 +6,4 @@ venv/
 */__pycache__/
 maps/
 fonts/*.zip
+fonts/*.ttf.png

@@ -1,0 +1,8 @@
+Letters: P H BUS
+Sans-serif: 𝗣 𝗛 𝗕𝗨𝗦
+Crosses: † ✝
+Amenity: 🚻 🖂 ⛲ ⛹ 🎓 🎒
+Entertainment: 🎨 🎡 🎢 🎜 🎬 🎭 🎰 🎲
+Sport: 🎳 🎾 🏓 🏸 🚩
+Restaurants: 🍽 🍴 🍵 🍶 🍷 🍺 🍾
+Transport: ⛽ 🚂 🚁 🚃 🚋 🚌 🚖 🛪

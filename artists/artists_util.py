@@ -183,9 +183,19 @@ class Base:
         return [bbox] if bbox is not None else []
 
 
-def get_font(name, size=16):
-    return ImageFont.truetype(font=name, size=size)
+class Font(dict):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def __call__(self, size=24):
+        return self[size]
+
+    def __missing__(self, size):
+        self[size] = font = ImageFont.truetype(font=self.name, size=size)
+        return font
 
 
-font_bold = partial(get_font, 'fonts/IBMPlexSans-Bold.ttf')
-font_italic = partial(get_font, 'fonts/IBMPlexSansCondensed-MediumItalic.ttf')
+FontSymbol = Font('fonts/Symbola.ttf')
+FontEmoji = Font('fonts/NotoEmoji-Regular.ttf')
+FontItalic = Font('fonts/IBMPlexSansCondensed-MediumItalic.ttf')

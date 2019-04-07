@@ -6,7 +6,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import element_to_polygons, transform_shapes, explode_features, Feature, font_bold
+from artists_util import element_to_polygons, transform_shapes, explode_features, Feature, FontSymbol, FontEmoji
 from camera import Camera
 from geometry import polygon_centroid, polygon_area
 from osm_helper import OsmHelper, tag_dict
@@ -14,9 +14,9 @@ from osm_helper import OsmHelper, tag_dict
 
 _symbol = namedtuple('symbol', 'text font fill weight min_area')
 _symbols = explode_features([
-    Feature('amenity', 'parking', _symbol('P', font_bold(12), '#44f', 0.005, 100)),
-    Feature('amenity', 'hospital', _symbol('H', font_bold(12), '#44f', 0.05, 400)),
-    Feature('amenity', 'place_of_worship', _symbol('\u2020', font_bold(12), '#222', 0.05, 100)),
+    Feature('amenity', 'parking', _symbol(u'\U0001D5E3', FontSymbol(12), '#44f', 0.005, 100)),
+    Feature('amenity', 'hospital', _symbol(u'\U0001D5DB', FontSymbol(12), '#f44', 0.05, 400)),
+    Feature('amenity', 'place_of_worship', _symbol(u'\u271D', FontSymbol(16), '#222', 0.05, 100)),
 ])
 
 

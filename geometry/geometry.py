@@ -9,8 +9,8 @@ _Polygon = List[_Point]
 
 
 def _norm_polygon(polygon: _Polygon):
-    if len(polygon) < 3:
-        polygon = []
+    if len(polygon) == 0:
+        raise ValueError('Empty polygon')
     if polygon[0] != polygon[-1]:
         polygon = polygon + [polygon[0]]
     return np.array(polygon)
@@ -26,7 +26,8 @@ def _polygon_raw_area(polygon: np.ndarray):
 
 
 def polygon_area(polygon: List[_Point]):
-    return 0.5 * np.abs(_polygon_raw_area(_norm_polygon(polygon)))
+    polygon = _norm_polygon(polygon) - polygon[0]
+    return 0.5 * np.abs(_polygon_raw_area(polygon))
 
 
 def polygon_centroid(polygon: List[_Point]):

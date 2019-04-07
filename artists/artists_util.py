@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict, namedtuple
+from functools import partial
 from typing import List, Tuple, Union
 from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import Element
@@ -180,3 +181,11 @@ class Base:
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         bbox = element_to_bbox(element, osm_helper)
         return [bbox] if bbox is not None else []
+
+
+def get_font(name, size=16):
+    return ImageFont.truetype(font=name, size=size)
+
+
+font_bold = partial(get_font, 'fonts/IBMPlexSans-Bold.ttf')
+font_italic = partial(get_font, 'fonts/IBMPlexSansCondensed-MediumItalic.ttf')

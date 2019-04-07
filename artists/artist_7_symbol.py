@@ -12,9 +12,11 @@ from geometry import polygon_centroid, polygon_area
 from osm_helper import OsmHelper, tag_dict
 
 
-_symbol = namedtuple('symbol', 'text font fill')
+_symbol = namedtuple('symbol', 'text font fill weight min_area')
 _symbols = explode_features([
-    Feature('amenity', 'parking', _symbol('P', font_bold(12), '#44f'))
+    Feature('amenity', 'parking', _symbol('P', font_bold(12), '#44f', 0.005, 100)),
+    Feature('amenity', 'hospital', _symbol('H', font_bold(12), '#44f', 0.05, 400)),
+    Feature('amenity', 'place_of_worship', _symbol('\u2020', font_bold(12), '#222', 0.05, 100)),
 ])
 
 
@@ -41,15 +43,16 @@ class ArtistSymbol:
             point, area = None, 0
             if element.tag == 'node':
                 point = camera.gps_to_px((float(element.attrib['lat']), float(element.attrib['lon'])))
-                area = 100 * camera.px_per_meter() ** 2
             else:
                 polygons = [(polygon, polygon_area(polygon)) for polygon in
                             transform_shapes(element_to_polygons(element, osm_helper), camera)]
                 if len(polygons) > 0:
                     polygon = max(polygons, key=itemgetter(1))
                     point, area = polygon_centroid(polygon[0]), polygon[1]
-            if area > 200:
-                labels.append((area, point, self.map[element].style))
+            style: _symbol = self.map[element].style
+            area = max(area, style.min_area * camera.px_per_meter() ** 2) * style.weight
+            if point is not None and area > 1:
+                labels.append((area, point, style))
         for area, point, style in sorted(labels, reverse=True):
             image_draw.text(point, text=style.text, fill=style.fill, font=style.font)
 

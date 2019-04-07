@@ -53,8 +53,10 @@ class ArtistSymbol:
             area = max(area, style.min_area * camera.px_per_meter() ** 2) * style.weight
             if point is not None and area > 1:
                 labels.append((area, point, style))
-        for area, point, style in sorted(labels, reverse=True):
-            image_draw.text(point, text=style.text, fill=style.fill, font=style.font)
+        for area, (x, y), style in sorted(labels, key=itemgetter(0), reverse=True):
+            width, height = image_draw.textsize(style.text, font=style.font)
+            image_draw.text((x - width // 2, y - height // 2),
+                            text=style.text, fill=style.fill, font=style.font)
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         return []

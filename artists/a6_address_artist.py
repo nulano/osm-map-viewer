@@ -5,13 +5,13 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from util_artist import Base, element_to_polygons, transform_shapes, FontItalic
+from base_artist import BaseArtist, element_to_polygons, transform_shapes, FontItalic
 from camera import Camera
 from geometry import polygon_centroid, polygon_area
 from osm_helper import OsmHelper, tag_dict
 
 
-class A6_addressArtist(Base):
+class A6_addressArtist(BaseArtist):
     def __init__(self):
         super().__init__([])
         self.map = WeakKeyDictionary()

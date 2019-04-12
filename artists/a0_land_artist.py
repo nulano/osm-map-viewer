@@ -1,4 +1,4 @@
-from util_artist import Base, Feature, StyleArea, StyleLine
+from base_artist import BaseArtist, Feature, StyleArea, StyleLine
 
 _land_types = [
     # land designation / zoning
@@ -31,7 +31,7 @@ _land_types = [
 ]
 
 
-class A0_landArtist(Base):
+class A0_landArtist(BaseArtist):
     def __init__(self):
         super().__init__(_land_types)
 

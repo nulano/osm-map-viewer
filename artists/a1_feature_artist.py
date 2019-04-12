@@ -1,4 +1,4 @@
-from util_artist import Base, Feature, StyleOutlined, StyleArea, StyleLine, StylePoint
+from base_artist import BaseArtist, Feature, StyleOutlined, StyleArea, StyleLine, StylePoint
 
 _land_types = [
     # buildings, built-up areas
@@ -25,7 +25,7 @@ _land_types = [
 ]
 
 
-class A1_featureArtist(Base):
+class A1_featureArtist(BaseArtist):
     def __init__(self):
         super().__init__(_land_types)
 

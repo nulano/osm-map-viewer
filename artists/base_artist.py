@@ -152,8 +152,8 @@ def explode_features(features: List[Feature]):
     return exploded
 
 
-class Base:
-    def __init__(self, features):
+class BaseArtist:
+    def __init__(self, features=()):
         self.styles = explode_features(features)
         self.map = WeakKeyDictionary()
 
@@ -182,6 +182,9 @@ class Base:
         bbox = element_to_bbox(element, osm_helper)
         return [bbox] if bbox is not None else []
 
+    def __str__(self):
+        return 'BaseArtist'
+
 
 class Font(dict):
     def __init__(self, name):
@@ -199,12 +202,3 @@ class Font(dict):
 FontSymbol = Font('fonts/Symbola.ttf')
 FontEmoji = Font('fonts/NotoEmoji-Regular.ttf')
 FontItalic = Font('fonts/IBMPlexSansCondensed-MediumItalic.ttf')
-
-
-# empty artist for assemble.py
-class UtilArtist:
-    def wants_element(self, *args, **kwargs):
-        return False
-
-    def __str__(self):
-        return 'Artist Util'

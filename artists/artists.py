@@ -14,6 +14,8 @@ def get_artists():
         module = __import__(file, globals=globals())
         module_artists: list = getattr(module, '_all', None)
         if module_artists is None:
-            module_artists = map(lambda n: getattr(module, n)(), filter(lambda n: 'Artist' in n, dir(module)))
+            module_artists = map(lambda n: getattr(module, n)(),
+                                 filter(lambda n: 'Artist' in n and n != 'BaseArtist',
+                                        dir(module)))
         artists += module_artists
     return artists

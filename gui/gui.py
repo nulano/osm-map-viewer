@@ -6,10 +6,11 @@ from tkinter import ttk, messagebox, filedialog
 from xml.etree import ElementTree
 import sys
 
-from PIL import ImageTk
+from PIL import ImageTk, ImageDraw
 import numpy as np
 
 import camera
+from location_filter import Rectangle
 import renderer
 import osm_helper
 
@@ -27,14 +28,21 @@ def start():
     arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
     arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')
     arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('X', 'Y'))
-    arg_parser.add_argument('--center', nargs=2, type=float, help='center map at %(metavar) at startup', metavar=('LAT', 'LON'))
-    arg_parser.add_argument('--zoom', type=int, help='zoom map at level %(metavar) at startup', metavar='ZOOM')
+    arg_parser.add_argument('--center', nargs=2, type=float, help='center map at %(metavar)s at startup', metavar=('LAT', 'LON'))
+    arg_parser.add_argument('--zoom', type=int, help='zoom map at level %(metavar)s at startup', metavar='ZOOM')
+    arg_parser.add_argument('-F', '--search', help='search for object named %(metavar)s', dest='search_name', metavar='NAME')
     args = arg_parser.parse_args()
 
     loglevel = args.loglevel
     osm_helper.nulano_log = log
 
-    gui = Gui(file=args.file, dimensions=args.dimensions, center=args.center, zoom=args.zoom)
+    gui = Gui(file=args.file, dimensions=args.dimensions)
+    if args.search_name is not None:
+        gui.worker.task_search_name(args.search_name)
+    if args.center is not None:
+        gui.worker.task_center_gps(args.center, setdefault=True)
+    if args.zoom is not None:
+        gui.worker.task_zoom_set(args.zoom, setdefault=True)
     gui.start()
 
 
@@ -44,15 +52,50 @@ def _worker_callback(func):
     return wrap
 
 
+def show_dialog(root, title, lines: dict, callback, text_submit='OK', text_cancel='Cancel'):
+    dialog = tk.Toplevel(root, padx=5, pady=5)
+    dialog.title(title)
+
+    entries = []
+
+    def submit(event=None):
+        if callback(*[entry.get() for entry in entries]) != False:
+            dialog.destroy()
+
+    for row, (text, hint) in enumerate(lines.items()):
+        label = tk.Label(dialog, text=text)
+        label.grid(row=row, column=0, sticky='w')
+        entry = tk.Entry(dialog)
+        entry.insert(0, hint)
+        entry.grid(row=row, column=1, sticky='we')
+        entries.append(entry)
+
+    buttons = tk.Frame(dialog, padx=5)
+    btn_submit = tk.Button(buttons, text=text_submit)
+    btn_submit.grid(row=0, column=0, sticky='nesw')
+    buttons.columnconfigure(0, weight=1)
+    if text_cancel is not None:
+        btn_cancel = tk.Button(buttons, text=text_cancel, command=lambda: dialog.destroy())
+        btn_cancel.grid(row=0, column=1, sticky='nesw')
+        buttons.columnconfigure(1, weight=1)
+    buttons.grid(row=len(lines), column=0, columnspan=2, sticky='nesw')
+    btn_submit.config(command=submit)
+
+    dialog.bind('<Return>', submit)
+    dialog.transient(root)
+    dialog.resizable(False, False)
+    dialog.grab_set()
+    dialog.update()
+
+    x, y = root.winfo_rootx() + root.winfo_width() // 2, root.winfo_rooty() + root.winfo_height() // 2
+    dialog.geometry('+{}+{}'.format(x - dialog.winfo_width() // 2, y - dialog.winfo_height() // 2))
+
+
 class Gui:
-    def __init__(self, file, dimensions, center=None, zoom=None):
+    def __init__(self, file, dimensions):
         self.queue_callback = Queue()
         self.worker = GuiWorker(self)
         self.worker.task_load_map(file)
-        if center is not None:
-            self.worker.task_center_gps(center, setdefault=True)
-        if zoom is not None:
-            self.worker.task_zoom_set(zoom, setdefault=True)
 
         self.running = False
         self._raw_image, self._image = None, None
@@ -93,18 +136,24 @@ class Gui:
         self.menu.add_cascade(label='File', menu=self.menu_file)
 
         self.menu_view = tk.Menu(self.menu, tearoff=0)
-        self.menu_view.add_command(label="Recenter", command=self.worker.task_center_restore)
+        self.menu_view.add_command(label='Recenter', command=self.worker.task_center_restore)
         self.menu_view.add_separator()
-        self.menu_view.add_command(label="Zoom In", command=lambda: self.worker.task_zoom_in(self.size / 2))
-        self.menu_view.add_command(label="Zoom Out", command=lambda: self.worker.task_zoom_out(self.size / 2))
-        self.menu_view.add_command(label="Reset Zoom", command=self.worker.task_zoom_restore)
+        self.menu_view.add_command(label='Zoom In', command=lambda: self.worker.task_zoom_in(self.size / 2))
+        self.menu_view.add_command(label='Zoom Out', command=lambda: self.worker.task_zoom_out(self.size / 2))
+        self.menu_view.add_command(label='Reset Zoom', command=self.worker.task_zoom_restore)
         self.menu.add_cascade(label='View', menu=self.menu_view)
+
+        self.menu_search = tk.Menu(self.menu, tearoff=0)
+        self.menu_search.add_command(label='Find Address...', command=self.menu_search_address)
+        self.menu_search.add_command(label='Find by Name...', command=self.menu_search_name)
+        self.menu_search.add_command(label='Hide Search', command=lambda: self.worker.task_search_hide())
+        self.menu.add_cascade(label='Search', menu=self.menu_search)
 
         self.menu_help = tk.Menu(self.menu, tearoff=0)
         if arg_parser is not None:
             self.menu_help.add_command(label='Launch Options...', command=self.menu_help_args)
         self.menu_help.add_command(label='Controls...', command=self.menu_help_controls)
-        self.menu_help.add_command(label="About...", command=self.menu_help_about)
+        self.menu_help.add_command(label='About...', command=self.menu_help_about)
         self.menu.add_cascade(label='Help', menu=self.menu_help)
 
         self.root.config(menu=self.menu)
@@ -115,9 +164,18 @@ class Gui:
 
         self.running = True
         while self.running:
-            self.root.update()
-            while not self.queue_callback.empty():
-                self.queue_callback.get(block=False)()
+            try:
+                self.root.update()
+                while not self.queue_callback.empty():
+                    self.queue_callback.get(block=False)()
+            except SystemExit:
+                raise
+            except:
+                import traceback
+                self.worker(lambda: sys.exit(0))
+                messagebox.showerror(title='Gui has crashed', message=traceback.format_exc())
+                self.root.destroy()
+                raise
 
     def exit(self):
         self.worker(lambda: sys.exit(0))
@@ -170,6 +228,14 @@ class Gui:
         else:
             messagebox.showinfo(title='Launch Options', message=arg_parser.format_help())
 
+    def menu_search_address(self):
+        show_dialog(self.root, 'Find address', {'Street:': 'Grösslingová', 'Number:': '18'},
+                    lambda *a: all(a) and self.worker.task_search_address(*a), text_submit='Search')
+
+    def menu_search_name(self):
+        show_dialog(self.root, 'Find by name', {'Name:': 'GAMČA'},
+                    lambda *a: all(a) and self.worker.task_search_name(*a), text_submit='Search')
+
 
 def _worker_task(func):
     def wrap(self, *args, **kwargs):
@@ -181,9 +247,13 @@ class GuiWorker:
     def __init__(self, gui):
         self.queue_tasks = Queue()
 
+        self.element_tree = None
+        self.osm_helper = None
         self.camera = None
         self.renderer = None
         self.settings = {}
+        self.highlight = None
+        self.selection = None
 
         self.gui = gui
         renderer.nulano_gui_callback = self._status
@@ -224,21 +294,50 @@ class GuiWorker:
                 return
     
     def _render(self):
+        if self.renderer is None:
+            self._status('No map file open')
+
         log('-- rendering...')
-        self.gui.callback_render(self.renderer.render())
-        center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
+        image = self.renderer.render()
+        image_draw = ImageDraw.Draw(image, 'RGBA')
+        if isinstance(self.highlight, tuple):
+            x, y = self.renderer.camera.gps_to_px(self.highlight)
+            image_draw.ellipse(((x - 5, y - 5), (x + 5, y + 5)), fill='#f00')
+        elif isinstance(self.highlight, Rectangle):
+            a, b = (self.highlight.max_lat, self.highlight.min_lon), (self.highlight.min_lat, self.highlight.max_lon)
+            image_draw.ellipse((self.camera.gps_to_px(a), self.camera.gps_to_px(b)), width=2, outline='#f00')
+        self.gui.callback_render(image)
+
         log('-- rendering done')
-        self._status(status='lat={0:.4f}, lon={1:.4f}, zoom={2}, px/m={3:.3f}'
-                            .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter()))
+        center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
+        status = 'lat={0:.4f}, lon={1:.4f}, zoom={2}, px/m={3:.3f}' \
+            .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter())
+        if self.selection is not None:
+            status = '{}, selected: {}'.format(status, self.selection)
+        self._status(status=status)
 
     @_worker_task
     def task_load_map(self, file):
         try:
+            self.element_tree = None
+            self.osm_helper = None
+            self.camera = None
+            self.renderer = None
+
+            from gc import collect as gc_collect
+            gc_collect()
+
             log('-- loading map:', file)
             self._status(status='parsing xml')
-            element_tree = ElementTree.parse(file)
+            self.element_tree = ElementTree.parse(file)
+            gc_collect()
             self.camera = camera.Camera()
-            self.renderer = renderer.Renderer(self.camera, element_tree)
+            self.renderer = renderer.Renderer(self.camera, self.element_tree)
+            try:
+                self.osm_helper = self.renderer.osm_helper
+            except AttributeError:
+                log('Could not find OsmHelper in Renderer, creating a duplicate in Gui', level=2)
+                self.osm_helper = osm_helper.OsmHelper(self.element_tree)
             self.settings = {}
             self.renderer.center_camera()
             self.settings['zoom'] = self.camera.zoom_level
@@ -287,6 +386,83 @@ class GuiWorker:
     @_worker_task
     def task_zoom_restore(self):
         self.camera.zoom_level = self.settings['zoom']
+
+    def _select(self, element, name=None):
+        self.highlight, self.selection = None, None
+        if element is None:
+            return
+        if not name:
+            name = osm_helper.tag_dict(element).get('name')
+
+        if element.tag == 'node':
+            self.highlight = (float(element.attrib['lat']), float(element.attrib['lon']))
+            self.camera.center_at(*self.highlight)
+            self.selection = name
+        else:
+            points = []
+            tp = element.tag
+            if element.tag == 'way':
+                points = self.osm_helper.way_coordinates(element)
+            elif element.tag == 'relation':
+                tags = osm_helper.tag_dict(element)
+                tp = '{}:{}'.format(element.tag, tags.get('type'))
+                if tags.get('type') == 'multipolygon':
+                    points = [point for polygon in self.osm_helper.multipolygon_to_polygons(element) for point in polygon]
+            if len(points) == 0:
+                log('Don\'t know how to select element {} of type {}'.format(name, tp), level=1)
+            else:
+                rectangle = Rectangle(90, 180, -90, -180)
+                for lat, lon in points:
+                    rectangle.min_lat = min(rectangle.min_lat, lat)
+                    rectangle.min_lon = min(rectangle.min_lon, lon)
+                    rectangle.max_lat = max(rectangle.max_lat, lat)
+                    rectangle.max_lon = max(rectangle.max_lon, lon)
+                self.highlight = rectangle
+                self.camera.center_at((rectangle.min_lat + rectangle.max_lat) / 2,
+                                      (rectangle.min_lon + rectangle.max_lon) / 2)
+                self.selection = name
+        log('Selected {} at {}'.format(self.highlight, self.selection))
+
+    @_worker_task
+    def task_search_hide(self):
+        self._select(None, None)
+
+    @_worker_task
+    def task_search_address(self, street: str, number: str):
+        street, number = street.lower(), number.lower()
+        log('Searching address: {}, {}'.format(street, number))
+        self._select(None)
+        for element in self.element_tree.getroot():
+            tags = osm_helper.tag_dict(element)
+            addr_street, addr_number = tags.get('addr:street', ''), tags.get('addr:housenumber', '')
+            address = ' '.join(filter(lambda x: x, [addr_street, addr_number]))
+            if street in addr_street.lower() and number in addr_number.lower().split('/'):
+                log('Found {}'.format(address))
+                self._select(element, address)
+                return
+        log('Search unsuccessful')
+
+    @_worker_task
+    def task_search_name(self, target: str):
+        target = target.lower()
+        log('Searching name: {}'.format(target))
+        self._select(None)
+        best, best_len = None, 1000
+        for element in self.element_tree.getroot():
+            tags = osm_helper.tag_dict(element)
+            names = filter(lambda i: 'name' in i[0], tags.items())
+            for key, name in names:
+                if target in name.lower():
+                    match = len(name)
+                    if element.tag == 'node':
+                        match += 10
+                    if element.tag == 'relation':
+                        match -= 10 if tags.get('type') == 'multipolygon' else 0.5
+                    if match < best_len:
+                        best, best_len = element, match
+        if best is None:
+            log('Search unsuccessful')
+        self._select(best)
 
 
 if __name__ == '__main__':

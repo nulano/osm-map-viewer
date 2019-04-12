@@ -27,6 +27,7 @@ _land_types = [
     Feature('waterway', 'riverbank',                                StyleArea('#ade', 0, False)),
     Feature('waterway', 'stream canal',                             StyleLine('#ade', 3, 0.000)),
     Feature('waterway', 'river',                                    StyleLine('#ade', 5, 0.000)),
+    Feature('man_made', 'pier',                                     StyleArea('#eed', 0, False)),  # TODO can be line
 ]
 
 

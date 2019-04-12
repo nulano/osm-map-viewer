@@ -168,7 +168,7 @@ class Gui:
                 self.root.update()
                 while not self.queue_callback.empty():
                     self.queue_callback.get(block=False)()
-            except SystemExit:
+            except (SystemExit, KeyboardInterrupt):
                 raise
             except:
                 import traceback
@@ -296,6 +296,8 @@ class GuiWorker:
     def _render(self):
         if self.renderer is None:
             self._status('No map file open')
+            self.gui.queue_callback.put(self.gui.menu_file_open)
+            return
 
         log('-- rendering...')
         image = self.renderer.render()
@@ -319,9 +321,10 @@ class GuiWorker:
     @_worker_task
     def task_load_map(self, file):
         try:
+            self.camera = camera.Camera()
+
             self.element_tree = None
             self.osm_helper = None
-            self.camera = None
             self.renderer = None
 
             from gc import collect as gc_collect
@@ -331,7 +334,6 @@ class GuiWorker:
             self._status(status='parsing xml')
             self.element_tree = ElementTree.parse(file)
             gc_collect()
-            self.camera = camera.Camera()
             self.renderer = renderer.Renderer(self.camera, self.element_tree)
             try:
                 self.osm_helper = self.renderer.osm_helper
@@ -346,7 +348,6 @@ class GuiWorker:
             log('File {} does not exist.'.format(file), level=3)
             log(level=3)
             log('Use "{0} -f FILE" to specify a map file or "{0} -h" to show help.'.format(sys.argv[0]), level=3)
-            sys.exit(1)
 
     @_worker_task
     def task_resize(self, width, height):

@@ -199,3 +199,12 @@ class Font(dict):
 FontSymbol = Font('fonts/Symbola.ttf')
 FontEmoji = Font('fonts/NotoEmoji-Regular.ttf')
 FontItalic = Font('fonts/IBMPlexSansCondensed-MediumItalic.ttf')
+
+
+# empty artist for assemble.py
+class UtilArtist:
+    def wants_element(self, *args, **kwargs):
+        return False
+
+    def __str__(self):
+        return 'Artist Util'

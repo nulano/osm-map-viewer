@@ -34,7 +34,7 @@ class Renderer:
         draw_pairs = []
         self.artists = get_artists()
         for i, artist in enumerate(self.artists):
-            nulano_gui_callback(group='loading map', status=artist.__class__.__qualname__, current=i+1, maximum=len(self.artists))
+            nulano_gui_callback(group='loading map', status=str(artist), current=i+1, maximum=len(self.artists))
             for element in element_tree.getroot():
                 if artist.wants_element(element, osm_helper=self.osm_helper):
                     draw_pairs += [(element, artist)]
@@ -68,7 +68,7 @@ class Renderer:
                 groups[artist] += [element]
 
         for i, (artist, elements) in enumerate(groups.items()):
-            nulano_gui_callback(group='rendering', status=artist.__class__.__qualname__, current=i+1, maximum=len(groups))
+            nulano_gui_callback(group='rendering', status=str(artist), current=i+1, maximum=len(groups))
             artist.draw(elements, self.osm_helper, self.camera, draw)
 
         nulano_gui_callback(group='rendering', status='done', current=len(groups), maximum=len(groups))

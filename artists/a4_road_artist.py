@@ -4,7 +4,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import explode_features, transform_shapes, element_to_lines, element_to_polygons, MappedFeature
+from util_artist import explode_features, transform_shapes, element_to_lines, element_to_polygons, MappedFeature
 from camera import Camera
 from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
@@ -40,7 +40,7 @@ _road_types = explode_features([
 ])
 
 
-class ArtistRoad:
+class A4_roadArtist:
     def __init__(self):
         self.types = WeakKeyDictionary()
 
@@ -111,3 +111,6 @@ class ArtistRoad:
         from operator import itemgetter
         return [Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
                           max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])]
+
+    def __str__(self):
+        return "Roads"

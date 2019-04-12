@@ -6,7 +6,7 @@ from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from artists_util import element_to_polygons, transform_shapes, explode_features, Feature, FontSymbol, FontEmoji
+from util_artist import element_to_polygons, transform_shapes, explode_features, Feature, FontSymbol, FontEmoji
 from camera import Camera
 from geometry import polygon_centroid, polygon_area
 from osm_helper import OsmHelper, tag_dict
@@ -20,7 +20,7 @@ _symbols = explode_features([
 ])
 
 
-class ArtistSymbol:
+class A7_symbolArtist:
     def __init__(self):
         self.map = WeakKeyDictionary()
 
@@ -60,3 +60,6 @@ class ArtistSymbol:
 
     def approx_location(self, element: Element, osm_helper: OsmHelper):
         return []
+
+    def __str__(self):
+        return "Symbols"

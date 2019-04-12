@@ -1,4 +1,4 @@
-from artists_util import Base, Feature, StyleOutlined, StyleArea, StyleLine, StylePoint
+from util_artist import Base, Feature, StyleOutlined, StyleArea, StyleLine, StylePoint
 
 _land_types = [
     # buildings, built-up areas
@@ -25,6 +25,9 @@ _land_types = [
 ]
 
 
-class ArtistFeature(Base):
+class A1_featureArtist(Base):
     def __init__(self):
         super().__init__(_land_types)
+
+    def __str__(self):
+        return "Features"

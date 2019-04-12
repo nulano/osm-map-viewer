@@ -1,9 +1,9 @@
 
 files = [
-    'artist_0_land',
-    'artist_1_feature',
-    'artist_4_road',
-    'artist_7_symbol'
+    'a0_land_artist',
+    'a1_feature_artist',
+    'a4_road_artist',
+    'a7_symbol_artist',
 ]
 
 

@@ -3,6 +3,7 @@ files = [
     'a0_land_artist',
     'a1_feature_artist',
     'a4_road_artist',
+    'a6_address_artist',
     'a7_symbol_artist',
 ]
 

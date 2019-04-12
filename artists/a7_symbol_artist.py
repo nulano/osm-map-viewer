@@ -1,38 +1,27 @@
 from collections import namedtuple
 from operator import itemgetter
 from typing import List
-from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from util_artist import element_to_polygons, transform_shapes, explode_features, Feature, FontSymbol, FontEmoji
+from util_artist import Base, element_to_polygons, transform_shapes, Feature, FontSymbol, FontEmoji
 from camera import Camera
 from geometry import polygon_centroid, polygon_area
-from osm_helper import OsmHelper, tag_dict
+from osm_helper import OsmHelper
 
 
 _symbol = namedtuple('symbol', 'text font fill weight min_area')
-_symbols = explode_features([
+_symbols = [
     Feature('amenity', 'parking', _symbol(u'\U0001D5E3', FontSymbol(12), '#44f', 0.005, 100)),
     Feature('amenity', 'hospital', _symbol(u'\U0001D5DB', FontSymbol(12), '#f44', 0.05, 400)),
     Feature('amenity', 'place_of_worship', _symbol(u'\u271D', FontSymbol(16), '#222', 0.05, 100)),
-])
+]
 
 
-class A7_symbolArtist:
+class A7_symbolArtist(Base):
     def __init__(self):
-        self.map = WeakKeyDictionary()
-
-    def wants_element(self, element: Element, osm_helper: OsmHelper):
-        tags = tag_dict(element)
-        for key, types in _symbols.items():
-            try:
-                self.map[element] = types[tags[key]]
-                return True
-            except KeyError:
-                pass
-        return False
+        super().__init__(_symbols)
 
     def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
         return True
@@ -57,9 +46,6 @@ class A7_symbolArtist:
             width, height = image_draw.textsize(style.text, font=style.font)
             image_draw.text((x - width // 2, y - height // 2),
                             text=style.text, fill=style.fill, font=style.font)
-
-    def approx_location(self, element: Element, osm_helper: OsmHelper):
-        return []
 
     def __str__(self):
         return "Symbols"

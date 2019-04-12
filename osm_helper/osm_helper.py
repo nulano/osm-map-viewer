@@ -72,7 +72,7 @@ class OsmHelper:
             element_type = tag_dict(multipolygon).get('type', None)
             if element_type != 'multipolygon':
                 raise ValueError('invalid multipolygon: {}[{}].type={}'
-                                 .format(multipolygon.tag, multipolygon.attrib['id'], element_type), level=2)
+                                 .format(multipolygon.tag, multipolygon.attrib['id'], element_type))
             ways = Queue()
             for el in multipolygon:
                 if el.tag == 'member' and el.attrib['type'] == 'way':
@@ -116,7 +116,7 @@ class OsmHelper:
             return out
         except (KeyError, ValueError):
             from traceback import format_exc
-            for line in format_exc(limit=2).splitlines():
+            for line in format_exc(limit=2, chain=False).splitlines():
                 nulano_log(line, level=2)
         return []
 

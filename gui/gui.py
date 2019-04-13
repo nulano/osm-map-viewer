@@ -9,6 +9,7 @@ import sys
 
 from PIL import ImageTk, ImageDraw
 import numpy as np
+from PIL import Image
 
 import camera
 from location_filter import Rectangle
@@ -101,27 +102,24 @@ class Gui:
         self.worker = GuiWorker(self)
         self.worker.task_load_map(file)
 
-        self.running = False
-        self._raw_image, self._image = None, None
-
         self.root = tk.Tk()
         self.root.winfo_toplevel().title('OSM Map Viewer')
         self.root.geometry('x'.join(map(str, dimensions)))
         self.root.bind('<Destroy>', func=lambda e: self.exit() if e.widget == self.root else None)
 
         self.panel = tk.Label(self.root)
-        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.worker.task_center((e.x, e.y)))
-        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.worker.task_zoom_in((e.x, e.y)))
-        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.worker.task_zoom_out((e.x, e.y)))
-        self.panel.bind('<Configure>', func=lambda e: self.worker.task_resize(e.width, e.height))
+        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.action_center((e.x, e.y)))
+        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.action_zoom_in((e.x, e.y)))
+        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.action_zoom_out((e.x, e.y)))
+        self.panel.bind('<Configure>', func=lambda e: self.action_resize((e.width, e.height)))
         self.panel.grid(row=0, column=0, columnspan=2, sticky='nesw')
         self.root.rowconfigure(index=0, weight=1)
-        self.root.bind('<p>', func=lambda e: self.worker.task_zoom_in(self.size / 2))
-        self.root.bind('<o>', func=lambda e: self.worker.task_zoom_out(self.size / 2))
-        self.root.bind('<Left>', func=lambda e: self.worker.task_center(self.size * (0.3, 0.5)))
-        self.root.bind('<Right>', func=lambda e: self.worker.task_center(self.size * (0.7, 0.5)))
-        self.root.bind('<Up>', func=lambda e: self.worker.task_center(self.size * (0.5, 0.3)))
-        self.root.bind('<Down>', func=lambda e: self.worker.task_center(self.size * (0.5, 0.7)))
+        self.root.bind('<p>', func=lambda e: self.action_zoom_in(self.size / 2))
+        self.root.bind('<o>', func=lambda e: self.action_zoom_out(self.size / 2))
+        self.root.bind('<Left>', func=lambda e: self.action_center(self.size * (0.3, 0.5)))
+        self.root.bind('<Right>', func=lambda e: self.action_center(self.size * (0.7, 0.5)))
+        self.root.bind('<Up>', func=lambda e: self.action_center(self.size * (0.5, 0.3)))
+        self.root.bind('<Down>', func=lambda e: self.action_center(self.size * (0.5, 0.7)))
 
         self.status = tk.Label(self.root, bd=1, relief='sunken', anchor='w')
         self.status.grid(row=1, column=0, sticky='nesw')
@@ -142,8 +140,8 @@ class Gui:
         self.menu_view = tk.Menu(self.menu, tearoff=0)
         self.menu_view.add_command(label='Recenter', command=self.worker.task_center_restore)
         self.menu_view.add_separator()
-        self.menu_view.add_command(label='Zoom In', command=lambda: self.worker.task_zoom_in(self.size / 2))
-        self.menu_view.add_command(label='Zoom Out', command=lambda: self.worker.task_zoom_out(self.size / 2))
+        self.menu_view.add_command(label='Zoom In', command=lambda: self.action_zoom_in(self.size / 2))
+        self.menu_view.add_command(label='Zoom Out', command=lambda: self.action_zoom_out(self.size / 2))
         self.menu_view.add_command(label='Reset Zoom', command=self.worker.task_zoom_restore)
         self.menu.add_cascade(label='View', menu=self.menu_view)
 
@@ -159,6 +157,9 @@ class Gui:
         self.menu_help.add_command(label='Controls...', command=self.menu_help_controls)
         self.menu_help.add_command(label='About...', command=self.menu_help_about)
         self.menu.add_cascade(label='Help', menu=self.menu_help)
+
+        self.running = False
+        self.preview(Image.new('RGB', (1, 1)))
 
         self.root.config(menu=self.menu)
 
@@ -185,6 +186,28 @@ class Gui:
         self.worker(lambda: sys.exit(0))
         self.running = False
 
+    # noinspection PyAttributeOutsideInit
+    def preview(self, image, position=(0, 0), scale=1):
+        self._image = image
+        self._image_position, self._image_scale = position, scale
+
+        center = self.size / 2
+        half_size = np.array(image.size)
+        if scale > 1:
+            left, top = map(int, (-center - position) / scale + half_size / 2)
+            right, bottom = map(int, (center - position) / scale + half_size / 2)
+            canvas = image.crop((left, top, right, bottom)).resize(tuple(image.size))
+        else:
+            left, top = map(int, -half_size / 2 * scale + position + center)
+            right, bottom = map(int, half_size / 2 * scale + position + center)
+            if scale < 1:
+                image = image.resize(((right - left), (bottom - top)))
+            canvas = Image.new('RGB', tuple(self.size))
+            canvas.paste(image, (left, top))
+
+        self.panel.image = ImageTk.PhotoImage(canvas)
+        self.panel.configure(image=self.panel.image)
+
     @_worker_callback
     def callback_status(self, progress, message):
         self.progress.set(progress)
@@ -192,9 +215,7 @@ class Gui:
 
     @_worker_callback
     def callback_render(self, image):
-        self._raw_image = image
-        self._image = ImageTk.PhotoImage(image)
-        self.panel.configure(image=self._image)
+        self.preview(image)
 
     @_worker_callback
     def callback_crash(self, message):
@@ -211,6 +232,28 @@ class Gui:
         if file:
             self.worker.task_load_map(file)
             self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
+
+    def action_resize(self, size):
+        self.worker.task_resize(*size)
+        self.preview(self._image, self._image_position, self._image_scale)
+
+    def action_center(self, point):
+        self.worker.task_center(point)
+        x, y = self._image_position + (self.size / 2 - point)
+        self.preview(self._image, (x, y), self._image_scale)
+
+    def action_zoom_in(self, point):
+        self.worker.task_zoom_in(point)
+        self.scale_preview(point, 1.5)
+
+    def action_zoom_out(self, point):
+        self.worker.task_zoom_out(point)
+        self.scale_preview(point, 1 / 1.5)
+
+    def scale_preview(self, point, scale):
+        point = np.array(point) - self.size / 2
+        distance = (self._image_position - point) * scale
+        self.preview(self._image, tuple(point + distance), self._image_scale * scale)
 
     def menu_help_about(self):
         if arg_parser is None:
@@ -321,15 +364,16 @@ class GuiWorker:
         elif isinstance(self.highlight, Rectangle):
             a, b = (self.highlight.max_lat, self.highlight.min_lon), (self.highlight.min_lat, self.highlight.max_lon)
             image_draw.ellipse((self.camera.gps_to_px(a), self.camera.gps_to_px(b)), width=2, outline='#f00')
-        self.gui.callback_render(image)
 
         log('-- rendering done')
-        center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
-        status = 'lat={0:.4f}, lon={1:.4f}, zoom={2}, px/m={3:.3f}' \
-            .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter())
-        if self.selection is not None:
-            status = '{}, selected: {}'.format(status, self.selection)
-        self._status(status=status)
+        if self.queue_tasks.empty():
+            self.gui.callback_render(image)
+            center_deg = self.camera.px_to_gps((self.camera.px_width / 2, self.camera.px_height / 2))
+            status = 'lat={0:.4f}, lon={1:.4f}, zoom={2}, px/m={3:.3f}' \
+                .format(center_deg[0], center_deg[1], self.camera.zoom_level, self.camera.px_per_meter())
+            if self.selection is not None:
+                status = '{}, selected: {}'.format(status, self.selection)
+            self._status(status=status)
 
     @_worker_task
     def task_load_map(self, file):

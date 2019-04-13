@@ -18,7 +18,7 @@ Restaurants: 🍽 🍴 🍵 🍶 🍷 🍺 🍾
 Transport: ⛽ 🚂 🚁 🚃 🚋 🚌 🚖 🛪
 '''.splitlines()
 
-image = Image.new('RGB', (1000, 600), '#fff')
+image = Image.new('RGB', (2000, 600), '#fff')
 draw = ImageDraw.Draw(image, 'RGBA')
 for i, line in enumerate(text):
     draw.text((0, i * size), line, fill='#000', font=font)

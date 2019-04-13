@@ -1,27 +1,22 @@
 from base_artist import BaseArtist, Feature, StyleOutlined, StyleArea, StyleLine, StylePoint
 
 _land_types = [
-    # buildings, built-up areas
-    Feature('leisure',  'stadium sports_centre',            StyleArea('#efb', 0, False)),
-    Feature('man_made', 'bridge',                           StyleArea('#ddc', 0, False)),
-    Feature('aeroway',  'apron helipad',                    StyleArea('#bbb', 0, False)),
-    Feature('aeroway',  'taxiway',                          StyleLine('#aaa', 5, 0.000)),
-    Feature('aeroway',  'runway',                           StyleLine('#aaa', 7, 0.000)),
-    Feature('highway',  'footway pedestrian',               StyleArea('#ccc', 0, True)),
-    Feature('building', None,                               StyleOutlined('#ddc', 8, '#ccb', 0.150)),
+    # small features
+    Feature('barrier',  'hedge',                            StyleLine('#ada',  3, 0.8, 0.50)),
+    Feature('natural',  'tree_row',                         StyleLine('#ada',  5, 0.8, 0.50)),
+    Feature('highway',  'pedestrian',                       StyleLine('#ccc',  5, 1.0, 0.30, skip_area=True)),
+    Feature('barrier',  'wall fence handrail',              StyleLine('#daa',  1, 0.0, 0.50)),
+    Feature('barrier',  'city_wall',                        StyleLine('#d44',  3, 0.0, 0.30)),
+    Feature('natural',  'tree',                             StylePoint('#ada', 4, 0.75)),
+
+    # buildings, man-made objects
+    Feature('building', None,                               StyleOutlined('#ddc', 8, '#ccb', 0.50)),
     Feature('building', 'church cathedral chapel mosque '
                         'synagogue temple shrine '
-                        'hospital',                         StyleOutlined('#ccb', 0, '#bba', 0.150)),
-    Feature('leisure',  'pitch track',                      StyleOutlined('#df8', 0, '#de8', 0.150)),
-    Feature('leisure',  'playground',                       StyleOutlined('#cfc', 0, '#beb', 0.150)),
-    Feature('amenity',  'parking',                          StyleArea('#eef', 0, False)),
-
-    # small features
-    Feature('barrier',  'wall fence handrail',              StyleLine('#daa', 1, 0.300)),
-    Feature('barrier',  'city_wall',                        StyleLine('#d44', 3, 0.200)),
-    Feature('barrier',  'hedge',                            StyleLine('#ada', 2, 0.300)),
-    Feature('natural',  'tree_row',                         StyleLine('#ada', 4, 0.300)),
-    Feature('natural',  'tree',                             StylePoint('#ada', 4, 0.500)),
+                        'hospital',                         StyleOutlined('#ccb', 1, '#bba', 0.25)),
+    Feature('leisure',  'pitch track',                      StyleOutlined('#df8', 4, '#de8', 0.50)),
+    Feature('leisure',  'playground',                       StyleOutlined('#cfc', 4, '#beb', 0.50)),
+    Feature('amenity',  'parking',                          StyleArea('#eef',  16)),
 ]
 
 

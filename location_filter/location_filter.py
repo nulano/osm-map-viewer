@@ -1,5 +1,3 @@
-import math
-
 from osm_helper import OsmHelper
 
 

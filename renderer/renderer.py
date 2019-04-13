@@ -1,5 +1,7 @@
 from collections import defaultdict
+from datetime import timedelta
 from operator import itemgetter
+from time import time
 from typing import Union
 from xml.etree.ElementTree import ElementTree
 
@@ -16,6 +18,11 @@ from artists import get_artists
 # fallback for incompatible gui implementations
 def nulano_gui_callback(group: str = 'info', status: str = 'unknown', current: Union[int, float] = 0, maximum: int = 0):
     print('{}: {}/{}, ({})'.format(group, current, maximum, status))
+
+
+# fallback for incompatible gui implementations
+def nulano_gui_log(message: str):
+    print(message)
 
 
 class Renderer:
@@ -57,9 +64,12 @@ class Renderer:
         groups = defaultdict(list)
 
         nulano_gui_callback(group='rendering', status='location filter', current=0)
+        t = time()
         pairs = self.filter.get_pairs(self.camera.get_rect())
+        nulano_gui_log('rendering: location filter took {}s'.format(timedelta(seconds=time()-t)))
 
         nulano_gui_callback(group='rendering', status='zoom filter', current=(0.5/len(self.artists)))
+        t = time()
         for element, artist in pairs:
             zoom_filter = self.zoom_cache[artist][element]
             try:
@@ -70,10 +80,13 @@ class Renderer:
                 do_draw = zoom_filter[self.camera.zoom_level]
             if do_draw:
                 groups[artist] += [element]
+        nulano_gui_log('rendering: zoom filter took {}s'.format(timedelta(seconds=time()-t)))
 
         for i, (artist, elements) in enumerate(groups.items()):
             nulano_gui_callback(group='rendering', status=str(artist), current=i+1, maximum=len(groups))
+            t = time()
             artist.draw(elements, self.osm_helper, self.camera, draw)
+            nulano_gui_log('rendering: {} took {}s'.format(str(artist), timedelta(seconds=time()-t)))
 
         nulano_gui_callback(group='rendering', status='done', current=len(groups), maximum=len(groups))
         return image

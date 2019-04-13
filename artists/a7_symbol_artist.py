@@ -1,64 +1,90 @@
-from collections import namedtuple
+from dataclasses import dataclass
 from operator import itemgetter
 from typing import List
 from xml.etree.ElementTree import Element
 
 from PIL.ImageDraw import ImageDraw
 
-from base_artist import BaseArtist, element_to_polygons, transform_shapes, Feature, FontSymbol, FontEmoji
+from base_artist import BaseArtist, BaseStyle, Feature, FontSymbol, FontEmoji, element_to_polygons, element_to_area_m
 from camera import Camera
 from geometry import polygon_centroid, polygon_area
 from osm_helper import OsmHelper
 
+_pil_workaround = False
 
-_symbol = namedtuple('symbol', 'fallback_text text font fill min_area min_ppm')
+
+@dataclass(frozen=True)
+class StyleSymbol(BaseStyle):
+    text: str
+    text_fallback: str
+    font: object
+    fill: str
+    min_area: float
+    min_ppm: float
+
+    @property
+    def _text(self):
+        if _pil_workaround or self.font is None:
+            return self.text_fallback
+        else:
+            return self.text
+
+    def convert(self, element: Element, tags: dict, osm_helper: OsmHelper):
+        if element.tag == 'node':
+            return (float(element.attrib['lat']), float(element.attrib['lon'])), 0
+        else:
+            polygons = [(polygon, polygon_area(polygon)) for polygon in element_to_polygons(element, osm_helper)]
+            if len(polygons) > 0:
+                polygon, area = max(polygons, key=itemgetter(1))
+                return polygon_centroid(polygon), element_to_area_m(element, osm_helper)
+
+    def draws_at_zoom(self, feature, camera: Camera, osm_helper: OsmHelper):
+        point, area = feature
+        return camera.px_per_meter() >= self.min_ppm or area * (camera.px_per_meter() ** 2) >= self.min_area
+
+    def draw(self, features: List, osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
+        for point, area in sorted(features, key=itemgetter(1)):
+            x, y = camera.gps_to_px(point)
+            width, height = image_draw.textsize(self._text, font=self.font)
+            image_draw.text((x - width // 2, y - height // 2), text=self._text, fill=self.fill, font=self.font)
+
+
 _symbols = [
     # Parks
-    Feature('leisure', 'dog_park',          _symbol('D',  u'\U0001F43E',  FontSymbol(16), '#844',  200, 0.50)),
+    Feature('amenity', 'fountain',              StyleSymbol(u'\u26F2',      '',   FontSymbol(16), '#44f',  100, 2.0)),
+    Feature('leisure', 'dog_park',              StyleSymbol(u'\U0001F43E',  'D',  FontSymbol(20), '#844',  100, 1.0)),
 
-    # Amenities - Small
-    Feature('amenity', 'pub',               _symbol('P',  u'\U0001F37A',  FontSymbol(16), '#844',  200, 0.50)),
-    Feature('amenity', 'bar',               _symbol('B',  u'\U0001F377',  FontSymbol(16), '#844',  200, 0.50)),
-    Feature('amenity', 'cafe',              _symbol('C',  u'\U0001F375',  FontSymbol(16), '#844',  200, 0.50)),
-    Feature('amenity', 'fast_food',         _symbol('FF', u'\U0001F35F',  FontSymbol(16), '#844',  200, 0.50)),
-    Feature('amenity', 'restaurant',        _symbol('R',  u'\U0001F374',  FontSymbol(16), '#844',  200, 0.50)),
-    Feature('amenity', 'food_court',        _symbol('FC', u'\U0001F37D',  FontSymbol(20), '#844',  200, 0.25)),
+    # Amenities - Sustenance
+    Feature('amenity', 'ice_cream',             StyleSymbol(u'\U0001F366',  'IC', FontEmoji(16),  '#844',  100, 1.0)),
+    Feature('amenity', 'pub',                   StyleSymbol(u'\U0001F37A',  'P',  FontEmoji(16),  '#844',  100, 1.0)),
+    Feature('amenity', 'bar',                   StyleSymbol(u'\U0001F377',  'B',  FontEmoji(16),  '#844',  100, 1.0)),
+    Feature('amenity', 'cafe',                  StyleSymbol(u'\U0001F375',  'C',  FontEmoji(16),  '#844',  100, 1.0)),
+    Feature('amenity', 'fast_food',             StyleSymbol(u'\U0001F35F',  'FF', FontEmoji(16),  '#844',  100, 1.0)),
+    Feature('amenity', 'restaurant',            StyleSymbol(u'\U0001F374',  'R',  FontSymbol(20), '#844',  100, 1.0)),
+    Feature('amenity', 'food_court',            StyleSymbol(u'\U0001F37D',  'FC', FontSymbol(24), '#844',  100, 0.5)),
 
-    # Amenities - Large
-    Feature('amenity', 'parking',           _symbol('P',  u'\U0001D5E3',  FontSymbol(12), '#44f',  200, 0.50)),
-    Feature('amenity', 'place_of_worship',  _symbol('+',  u'\u271D',      FontSymbol(16), '#222',   20, 0.25)),
-    Feature('amenity', 'hospital',          _symbol('H',  u'\U0001D5DB',  FontSymbol(12), '#f44',   20, 0.25)),
+    # Amenities - Entertainment, Arts & Culture
+    Feature('leisure', 'adult_gaming_centre',   StyleSymbol(u'\U0001F3B0',  '?',  FontEmoji(16),  '#d80',  100, 1.0)),
+    Feature('amenity', 'casino',                StyleSymbol(u'\U0001F3B2',  '?',  FontEmoji(16),  '#d80',  100, 1.0)),
+    Feature('amenity', 'arts_centre',           StyleSymbol(u'\U0001F3A8',  'A',  FontEmoji(16),  '#d80',  100, 1.0)),
+    Feature('amenity', 'theatre',               StyleSymbol(u'\U0001F3AD',  'T',  FontEmoji(16),  '#d80',  100, 1.0)),
+    Feature('amenity', 'cinema',                StyleSymbol(u'\U0001F3AC',  'C',  FontEmoji(16),  '#d80',  100, 1.0)),
+
+    # Amenities - Education
+
+    # Amenities - Important
+    Feature('amenity', 'parking',               StyleSymbol(u'\U0001D5E3',  'P',  FontSymbol(12), '#44f',  100, 0.50)),
+    Feature('amenity', 'fuel',                  StyleSymbol(u'\u26FD',      'F',  FontEmoji(16),  '#44f',   50, 0.10)),
+    Feature('amenity', 'place_of_worship',      StyleSymbol(u'\u271D',      '+',  FontSymbol(16), '#222',   16, 0.25)),
+    Feature('amenity', 'hospital',              StyleSymbol(u'\U0001D5DB',  'H',  FontSymbol(16), '#f44',   16, 0.25)),
 ]
 
 
 class A7_symbolArtist(BaseArtist):
     def __init__(self):
         super().__init__(_symbols)
-        self._text_fallback = not _check_pil()
-
-    def draws_at_zoom(self, element: Element, zoom: int, osm_helper: OsmHelper):
-        return True
-
-    def draw(self, elements: List[Element], osm_helper: OsmHelper, camera: Camera, image_draw: ImageDraw):
-        labels = []
-        for element in elements:
-            point, area = None, 0
-            if element.tag == 'node':
-                point = camera.gps_to_px((float(element.attrib['lat']), float(element.attrib['lon'])))
-            else:
-                polygons = [(polygon, polygon_area(polygon)) for polygon in
-                            transform_shapes(element_to_polygons(element, osm_helper), camera)]
-                if len(polygons) > 0:
-                    polygon = max(polygons, key=itemgetter(1))
-                    point, area = polygon_centroid(polygon[0]), polygon[1]
-            style: _symbol = self.map[element].style
-            area = max(area / style.min_area, (camera.px_per_meter() / style.min_ppm) ** 2)
-            if point is not None and area > 1:
-                labels.append((area, point, style))
-        for area, (x, y), style in sorted(labels, key=itemgetter(0), reverse=True):
-            width, height = image_draw.textsize(style.text, font=style.font)
-            text = style.fallback_text if (self._text_fallback or style.font is None) else style.text
-            image_draw.text((x - width // 2, y - height // 2), text=text, fill=style.fill, font=style.font)
+        global _pil_workaround
+        _pil_workaround = not _check_pil()
 
     def __str__(self):
         return "Symbols"

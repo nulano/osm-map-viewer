@@ -24,7 +24,7 @@ class _memoize(dict):
 
 
 def get_typical_view_size(zoom_level: int):
-    width_m = _TYPICAL_WINDOW_WIDTH * 200 / (1.5 ** zoom_level)
+    width_m = _TYPICAL_WINDOW_WIDTH * 50 / (1.5 ** zoom_level)
     return 360 * (width_m / _EARTH_CIRCUMFERENCE_M)
 
 
@@ -32,6 +32,7 @@ class Camera:
     def __init__(self, latitude: float = 0, longitude: float = 0,
                  zoom_level: int = 10, dimensions: (int, int) = (10, 10)):
         self.dimensions = np.array(dimensions)
+        self._center = (latitude, longitude)
         self.zoom_level = zoom_level
         self.center_at(latitude, longitude)
 
@@ -39,6 +40,7 @@ class Camera:
     def center_at(self, new_lat: float, new_lon: float):
         self._center = np.array((new_lat, new_lon))
         self._center_point = self.gps_to_point(new_lat, new_lon)
+        self._scale = self._ppm * math.cos(math.radians(self._center[0]))
 
     @property
     def px_width(self): return self.dimensions[0]
@@ -59,7 +61,8 @@ class Camera:
     @zoom_level.setter
     def zoom_level(self, val: int):
         self._zoom_level = np.clip(val, 0, MAX_ZOOM_LEVEL)
-        self._ppm = 1.5 ** self._zoom_level / 200
+        self._ppm = 1.5 ** self._zoom_level / 50
+        self._scale = self._ppm * math.cos(math.radians(self._center[0]))
 
     def px_per_meter(self): return self._ppm
 
@@ -76,12 +79,12 @@ class Camera:
     def gps_to_px(self, gps_point: (float, float)):
         x, y = self.gps_to_point(*gps_point)
         dist = np.array((x, y)) - self._center_point
-        dist_px = dist * _EARTH_CIRCUMFERENCE_M * self._ppm
+        dist_px = dist * _EARTH_CIRCUMFERENCE_M * self._scale
         return tuple((self.dimensions / 2) + dist_px)
     
     def px_to_gps(self, px_point: (int, int)):
         dist_px = np.array(px_point) - (self.dimensions / 2)
-        dist = dist_px / _EARTH_CIRCUMFERENCE_M / self._ppm
+        dist = dist_px / _EARTH_CIRCUMFERENCE_M / self._scale
         x, y = dist + self._center_point
         return self.point_to_gps(x, y)
 

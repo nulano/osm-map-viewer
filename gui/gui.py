@@ -15,6 +15,8 @@ from location_filter import Rectangle
 import renderer
 import osm_helper
 
+loglevel = 0
+
 
 def log(*msg, level=0, **kwargs):
     global loglevel
@@ -36,6 +38,7 @@ def start():
 
     loglevel = args.loglevel
     osm_helper.nulano_log = log  # patch osm_helper
+    renderer.nulano_gui_log = log  # patch renderer
 
     gui = Gui(file=args.file, dimensions=args.dimensions)
     if args.search_name is not None:

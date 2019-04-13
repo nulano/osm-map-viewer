@@ -35,7 +35,7 @@ def start():
     args = arg_parser.parse_args()
 
     loglevel = args.loglevel
-    osm_helper.nulano_log = log
+    osm_helper.nulano_log = log  # patch osm_helper
 
     gui = Gui(file=args.file, dimensions=args.dimensions)
     if args.search_name is not None:
@@ -257,7 +257,16 @@ class GuiWorker:
         self.selection = None
 
         self.gui = gui
-        renderer.nulano_gui_callback = self._status
+        renderer.nulano_gui_callback = self._status  # patch renderer
+
+        # patch symbol artist:
+        try:
+            import a7_symbol_artist
+            a7_symbol_artist.nulano_warn = lambda title, message: gui.queue_callback.put(
+                    lambda: messagebox.showwarning(title, message)
+            )
+        except ImportError:
+            pass
 
     def __call__(self, task):
         self.queue_tasks.put(task)

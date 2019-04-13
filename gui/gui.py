@@ -1,5 +1,6 @@
 import argparse
 import tkinter as tk
+from operator import itemgetter
 from queue import Queue
 from threading import Thread
 from tkinter import ttk, messagebox, filedialog
@@ -412,15 +413,10 @@ class GuiWorker:
             if len(points) == 0:
                 log('Don\'t know how to select element {} of type {}'.format(name, tp), level=1)
             else:
-                rectangle = Rectangle(90, 180, -90, -180)
-                for lat, lon in points:
-                    rectangle.min_lat = min(rectangle.min_lat, lat)
-                    rectangle.min_lon = min(rectangle.min_lon, lon)
-                    rectangle.max_lat = max(rectangle.max_lat, lat)
-                    rectangle.max_lon = max(rectangle.max_lon, lon)
-                self.highlight = rectangle
-                self.camera.center_at((rectangle.min_lat + rectangle.max_lat) / 2,
-                                      (rectangle.min_lon + rectangle.max_lon) / 2)
+                rect = Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                                 max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])
+                self.highlight = rect
+                self.camera.center_at((rect.min_lat + rect.max_lat) / 2, (rect.min_lon + rect.max_lon) / 2)
                 self.selection = name
         log('Selected {} at {}'.format(self.highlight, self.selection))
 
@@ -431,7 +427,7 @@ class GuiWorker:
     @_worker_task
     def task_search_address(self, street: str, number: str):
         street, number = street.lower(), number.lower()
-        log('Searching address: {}, {}'.format(street, number))
+        self._status(status='Searching for address: {}, {}'.format(street, number))
         self._select(None)
         for element in self.element_tree.getroot():
             tags = osm_helper.tag_dict(element)
@@ -446,7 +442,7 @@ class GuiWorker:
     @_worker_task
     def task_search_name(self, target: str):
         target = target.lower()
-        log('Searching name: {}'.format(target))
+        self._status(status='Searching for name: {}'.format(target))
         self._select(None)
         best, best_len = None, 1000
         for element in self.element_tree.getroot():
@@ -456,9 +452,9 @@ class GuiWorker:
                 if target in name.lower():
                     match = len(name)
                     if element.tag == 'node':
-                        match += 10
+                        match += 0.5
                     if element.tag == 'relation':
-                        match -= 10 if tags.get('type') == 'multipolygon' else 0.5
+                        match -= 0.5
                     if match < best_len:
                         best, best_len = element, match
         if best is None:

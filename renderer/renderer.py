@@ -1,4 +1,5 @@
 from collections import defaultdict
+from operator import itemgetter
 from typing import Union
 from xml.etree.ElementTree import ElementTree
 
@@ -29,7 +30,10 @@ class Renderer:
                                         float(element.attrib['maxlat']), float(element.attrib['maxlon']))
                 break
         else:
-            raise AssertionError('no bounds tag in element_tree')
+            points = [(float(element.attrib['lat']), float(element.attrib['lon']))
+                      for element in element_tree.getroot() if element.tag == 'node']
+            self.bounds = Rectangle(min(points, key=itemgetter(0))[0], min(points, key=itemgetter(1))[1],
+                                    max(points, key=itemgetter(0))[0], max(points, key=itemgetter(1))[1])
 
         draw_pairs = []
         self.artists = get_artists()

@@ -1,6 +1,5 @@
 import math
 from collections import defaultdict, namedtuple
-from functools import partial
 from typing import List, Tuple, Union
 from weakref import WeakKeyDictionary
 from xml.etree.ElementTree import Element
@@ -195,7 +194,13 @@ class Font(dict):
         return self[size]
 
     def __missing__(self, size):
-        self[size] = font = ImageFont.truetype(font=self.name, size=size)
+        try:
+            font = ImageFont.truetype(font=self.name, size=size)
+        except IOError:
+            font = None
+            import traceback
+            traceback.print_exc(chain=False)
+        self[size] = font
         return font
 
 

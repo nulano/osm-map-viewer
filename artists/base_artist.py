@@ -242,7 +242,7 @@ class BaseArtist:
                 if feature.style.wants_element(element, tags, osm_helper):
                     self.map[element] = feature
                     self.data[element] = feature.style.convert(element, tags, osm_helper), element_to_bbox(element, osm_helper)
-                    return True
+                    return self.data[element][0] is not None
                 return False
             except KeyError:
                 pass

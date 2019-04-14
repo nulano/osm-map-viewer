@@ -51,7 +51,7 @@ class Renderer:
                     draw_pairs += [(element, artist)]
 
         nulano_gui_callback(status='initializing location filter', current=1)
-        self.filter = LocationFilter(0, self.bounds, draw_pairs, self.osm_helper)
+        self.filter = LocationFilter(0.1, self.bounds, draw_pairs, self.osm_helper)
         self.zoom_cache = defaultdict(lambda: defaultdict(dict))
 
     def center_camera(self):
@@ -82,10 +82,10 @@ class Renderer:
                 groups[artist] += [element]
         nulano_gui_log('rendering: zoom filter took {}s'.format(timedelta(seconds=time()-t)))
 
-        for i, (artist, elements) in enumerate(groups.items()):
+        for i, artist in enumerate(self.artists):
             nulano_gui_callback(group='rendering', status=str(artist), current=i+1, maximum=len(groups))
             t = time()
-            artist.draw(elements, self.osm_helper, self.camera, draw)
+            artist.draw(groups[artist], self.osm_helper, self.camera, draw)
             nulano_gui_log('rendering: {} took {}s'.format(str(artist), timedelta(seconds=time()-t)))
 
         nulano_gui_callback(group='rendering', status='done', current=len(groups), maximum=len(groups))

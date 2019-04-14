@@ -175,7 +175,7 @@ class Gui:
 
     def start(self):
         self.root.update()
-        Thread(name='worker', target=self.worker.run).start()
+        Thread(name='renderer', target=self.worker.run).start()
 
         self.running = True
         while self.running:
@@ -339,6 +339,7 @@ class GuiWorker:
         self.settings = {}
         self.highlight = None
         self.selection = None
+        self.dirty = False
 
         self.gui = gui
         renderer.nulano_gui_callback = self._status  # patch renderer
@@ -369,8 +370,9 @@ class GuiWorker:
     def run(self):
         try:
             while True:
-                self._process_tasks()
-                self._render()
+                self.queue_tasks.get(block=True)()
+                if self.dirty and self.queue_tasks.empty():
+                    self._render()
         except SystemExit:
             raise
         except:
@@ -391,12 +393,6 @@ class GuiWorker:
             log(message)
 
         self.gui.callback_status(current / maximum if maximum != 0 else current, message)
-    
-    def _process_tasks(self):
-        while True:
-            self.queue_tasks.get(block=True)()
-            if self.queue_tasks.empty():
-                return
     
     def _render(self):
         if self.renderer is None:
@@ -423,6 +419,7 @@ class GuiWorker:
             if self.selection is not None:
                 status = '{}, selected: {}'.format(status, self.selection)
             self._status(status=status)
+            self.dirty = False
 
     @_worker_task
     def task_load_map(self, file):
@@ -449,6 +446,7 @@ class GuiWorker:
             self.settings = {}
             self.renderer.center_camera()
             self.settings['zoom'] = self.camera.zoom_level
+            self.dirty = True
             log('-- map loaded')
         except FileNotFoundError:
             log('File {} does not exist.'.format(file), level=3)
@@ -457,17 +455,22 @@ class GuiWorker:
 
     @_worker_task
     def task_resize(self, width, height):
+        if self.camera.px_width < width or self.camera.px_height < height:
+            self.dirty = True
         self.camera.px_width, self.camera.px_height = width, height
+
 
     @_worker_task
     def task_center(self, point):
         self.camera.center_at(*self.camera.px_to_gps(point))
+        self.dirty = True
 
     @_worker_task
     def task_center_gps(self, point, setdefault=False):
         self.camera.center_at(*point)
         if setdefault:
             self.settings['center'] = point
+        self.dirty = True
 
     @_worker_task
     def task_center_restore(self):
@@ -475,27 +478,33 @@ class GuiWorker:
             self.camera.center_at(*self.settings['center'])
         else:
             self.renderer.center_camera()
+        self.dirty = True
 
     @_worker_task
     def task_zoom_in(self, point):
         self.camera.zoom_in(point)
+        self.dirty = True
 
     @_worker_task
     def task_zoom_out(self, point):
         self.camera.zoom_out(point)
+        self.dirty = True
 
     @_worker_task
     def task_zoom_set(self, zoom, setdefault=False):
         self.camera.zoom_level = zoom
         if setdefault:
             self.settings['zoom'] = zoom
+        self.dirty = True
 
     @_worker_task
     def task_zoom_restore(self):
         self.camera.zoom_level = self.settings['zoom']
+        self.dirty = True
 
     def _select(self, element, name=None):
         self.highlight, self.selection = None, None
+        self.dirty = True
         if element is None:
             return
         if not name:

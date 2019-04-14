@@ -1,4 +1,9 @@
+from collections import defaultdict
+from math import floor, ceil
+
 from osm_helper import OsmHelper
+
+CELL = 0.05
 
 
 class Rectangle:
@@ -20,18 +25,24 @@ class LocationFilter:
     def __init__(self, typical_query_size: float, bounding_box: Rectangle, draw_pairs: list, osm_helper: OsmHelper):
         self.typical_query_size = typical_query_size
         self.bounding_box = bounding_box
-        self.draw_pairs = [(element, artist, artist.approx_location(element, osm_helper)) for element, artist in draw_pairs]
+        self.boxes = defaultdict(list)
+        self.unbounded = []
+        self.pairs = draw_pairs
+        for i, (element, artist) in enumerate(draw_pairs):
+            location = artist.approx_location(element, osm_helper)
+            for bbox in location:
+                for lat in range(floor(bbox.min_lat / CELL), ceil(bbox.max_lat / CELL)):
+                    for lon in range(floor(bbox.min_lon / CELL), ceil(bbox.max_lon / CELL)):
+                        self.boxes[(lat, lon)].append((bbox, i))
+            if len(location) == 0:
+                self.unbounded.append(i)
 
-    # TODO close_enough
-    def get_pairs(self, rectangle: Rectangle):
-        out = []
-        for element, artist, approx_location in self.draw_pairs:
-            if len(approx_location) != 0:
-                for bb in approx_location:
-                    if max(rectangle.min_lat, bb.min_lat) <= min(rectangle.max_lat, bb.max_lat) \
-                   and max(rectangle.min_lon, bb.min_lon) <= min(rectangle.max_lon, bb.max_lon):
-                        break
-                else:
-                    continue
-            out.append((element, artist))
-        return out
+    def get_pairs(self, rect: Rectangle):
+        out = set(self.unbounded)
+        for lat in range(floor(rect.min_lat / CELL), ceil(rect.max_lat / CELL)):
+            for lon in range(floor(rect.min_lon / CELL), ceil(rect.max_lon / CELL)):
+                for bbox, i in self.boxes[(lat, lon)]:
+                    if max(rect.min_lat, bbox.min_lat) <= min(rect.max_lat, bbox.max_lat) \
+                            and max(rect.min_lon, bbox.min_lon) <= min(rect.max_lon, bbox.max_lon):
+                        out.add(i)
+        return [self.pairs[i] for i in sorted(out)]

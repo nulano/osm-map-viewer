@@ -30,7 +30,7 @@ def get_typical_view_size(zoom_level: int):
 
 class Camera:
     def __init__(self, latitude: float = 0, longitude: float = 0,
-                 zoom_level: int = 10, dimensions: (int, int) = (10, 10)):
+                 zoom_level: int = 8, dimensions: (int, int) = (10, 10)):
         self.dimensions = np.array(dimensions)
         self._center = (latitude, longitude)
         self.zoom_level = zoom_level

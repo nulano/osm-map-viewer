@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/gui/gui.py" />
-    <option name="PARAMETERS" value="-f artists/testdata/lafranconi.osm -Q --dimensions 600 400 --center 48.2 17 --zoom 3 -F &quot;fmfi UK&quot;" />
+    <option name="PARAMETERS" value="-f artists/testdata/lafranconi.osm -Q -O --dimensions 600 400 --center 48.16 17.05 --zoom 3 -F &quot;fmfi UK&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

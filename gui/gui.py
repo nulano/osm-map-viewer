@@ -29,9 +29,10 @@ def start():
     global loglevel, arg_parser
     arg_parser = argparse.ArgumentParser(description='OSM Map viewer GUI made by Nulano (2019)')
     arg_parser.add_argument('-f', '--map', default='maps/bratislava.osm', help='the OpenStreetMap xml file to use', dest='file')
+    arg_parser.add_argument('-O', '--old-mouse', action='store_const', const=True, default=False, help='use old mouse controls', dest='mouse_old')
     arg_parser.add_argument('-q', action='store_const', const=1, default=0, help='suppress info messages', dest='loglevel')
     arg_parser.add_argument('-Q', action='store_const', const=100, help='suppress ALL messages', dest='loglevel')
-    arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('X', 'Y'))
+    arg_parser.add_argument('--dimensions', default=(800, 600), nargs=2, type=int, help='use this resolution at startup', metavar=('W', 'H'))
     arg_parser.add_argument('--center', nargs=2, type=float, help='center map at %(metavar)s at startup', metavar=('LAT', 'LON'))
     arg_parser.add_argument('--zoom', type=int, help='zoom map at level %(metavar)s at startup', metavar='ZOOM')
     arg_parser.add_argument('-F', '--search', help='search for object named %(metavar)s', dest='search_name', metavar='NAME')
@@ -41,7 +42,7 @@ def start():
     osm_helper.nulano_log = log  # patch osm_helper
     renderer.nulano_gui_log = log  # patch renderer
 
-    gui = Gui(file=args.file, dimensions=args.dimensions)
+    gui = Gui(file=args.file, dimensions=args.dimensions, mouse_old=args.mouse_old)
     if args.search_name is not None:
         gui.worker.task_search_name(args.search_name)
     if args.center is not None:
@@ -97,7 +98,7 @@ def show_dialog(root, title, lines: dict, callback, text_submit='OK', text_cance
 
 
 class Gui:
-    def __init__(self, file, dimensions):
+    def __init__(self, file, dimensions, mouse_old=False):
         self.queue_callback = Queue()
         self.worker = GuiWorker(self)
         self.worker.task_load_map(file)
@@ -107,10 +108,19 @@ class Gui:
         self.root.geometry('x'.join(map(str, dimensions)))
         self.root.bind('<Destroy>', func=lambda e: self.exit() if e.widget == self.root else None)
 
-        self.panel = tk.Label(self.root)
-        self.panel.bind('<ButtonRelease-2>', func=lambda e: self.action_center((e.x, e.y)))
-        self.panel.bind('<ButtonRelease-1>', func=lambda e: self.action_zoom_in((e.x, e.y)))
-        self.panel.bind('<ButtonRelease-3>', func=lambda e: self.action_zoom_out((e.x, e.y)))
+        self.panel = tk.Label(self.root, background='#fff')
+        self.mouse_old = mouse_old
+        if mouse_old:
+            self.panel.bind('<ButtonRelease-2>', func=lambda e: self.action_center((e.x, e.y)))
+            self.panel.bind('<ButtonRelease-1>', func=lambda e: self.action_zoom_in((e.x, e.y)))
+            self.panel.bind('<ButtonRelease-3>', func=lambda e: self.action_zoom_out((e.x, e.y)))
+        else:
+            self.panel.bind('<MouseWheel>', func=lambda e: self.action_zoom_in((e.x, e.y)) if e.delta > 0
+                                                       else self.action_zoom_out((e.x, e.y)) if e.delta < 0 else None)
+            self.panel.bind('<Button-4>', func=lambda e: self.action_zoom_in((e.x, e.y)))
+            self.panel.bind('<Button-5>', func=lambda e: self.action_zoom_out((e.x, e.y)))
+            self.panel.bind('<ButtonPress-1>', func=lambda e: self.action_drag((e.x, e.y), False))
+            self.panel.bind('<B1-Motion>', func=lambda e: self.action_drag((e.x, e.y)))
         self.panel.bind('<Configure>', func=lambda e: self.action_resize((e.width, e.height)))
         self.panel.grid(row=0, column=0, columnspan=2, sticky='nesw')
         self.root.rowconfigure(index=0, weight=1)
@@ -193,16 +203,31 @@ class Gui:
 
         center = self.size / 2
         half_size = np.array(image.size)
+        canvas = Image.new('RGB', tuple(self.size), '#fff')
         if scale > 1:
             left, top = map(int, (-center - position) / scale + half_size / 2)
             right, bottom = map(int, (center - position) / scale + half_size / 2)
-            canvas = image.crop((left, top, right, bottom)).resize(tuple(image.size))
+            width, height = canvas.size
+            dx, dy = 0, 0
+            if left < 0:
+                left, dx = 0, int(-left * scale)
+                width -= dx
+            if top < 0:
+                top, dy = 0, int(-top * scale)
+                height -= dy
+            if right > image.size[0]:
+                width -= int((right - image.size[0]) * scale)
+                right = image.size[0]
+            if bottom > image.size[1]:
+                height -= int((bottom - image.size[1]) * scale)
+                bottom = image.size[1]
+            image = image.crop((left, top, right, bottom)).resize((width, height))
+            canvas.paste(image, (dx, dy))
         else:
             left, top = map(int, -half_size / 2 * scale + position + center)
             right, bottom = map(int, half_size / 2 * scale + position + center)
             if scale < 1:
                 image = image.resize(((right - left), (bottom - top)))
-            canvas = Image.new('RGB', tuple(self.size))
             canvas.paste(image, (left, top))
 
         self.panel.image = ImageTk.PhotoImage(canvas)
@@ -233,6 +258,12 @@ class Gui:
             self.worker.task_load_map(file)
             self.worker.task_resize(self.root.winfo_width(), self.root.winfo_height())
 
+    # noinspection PyAttributeOutsideInit
+    def action_drag(self, point, dragging=True):
+        if dragging:
+            self.action_center(tuple(self._drag - point + self.size / 2))
+        self._drag = np.array(point)
+
     def action_resize(self, size):
         self.worker.task_resize(*size)
         self.preview(self._image, self._image_position, self._image_scale)
@@ -262,12 +293,19 @@ class Gui:
             messagebox.showinfo(title='About', message=arg_parser.description)
 
     def menu_help_controls(self):
-        messagebox.showinfo(title='Controls', message=
-                            'Left-click to zoom in to point\n'
-                            'Right-click to zoom out to point\n'
-                            'Middle-click to center at point\n\n'
-                            '<P> and <O> to zoom in and out\n'
-                            'Arrow keys to move around')
+        if self.mouse_old:
+            messagebox.showinfo(title='Controls (old-mouse)', message=
+                                'Left-click to zoom in to point\n'
+                                'Right-click to zoom out to point\n'
+                                'Middle-click to center at point\n\n'
+                                '<P> and <O> to zoom in and out\n'
+                                'Arrow keys to move around')
+        else:
+            messagebox.showinfo(title='Controls', message=
+                                'Left-click-and-drag to move\n'
+                                'Scroll up/down to zoom in/out\n\n'
+                                'Arrow keys to move\n'
+                                '<P>/<O> to zoom in/out')
 
     def menu_help_args(self):
         if arg_parser is None:

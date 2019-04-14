@@ -51,24 +51,24 @@ class StyleSymbol(BaseStyle):
 
 _symbols = [
     # Parks
-    Feature('amenity', 'fountain',              StyleSymbol(u'\u26F2',      '',   FontSymbol(16), '#44f',  100, 2.0)),
-    Feature('leisure', 'dog_park',              StyleSymbol(u'\U0001F43E',  'D',  FontSymbol(20), '#844',  100, 1.0)),
+    Feature('amenity', 'fountain',              StyleSymbol(u'\u26F2',      '',   FontSymbol(16), '#44f',  100, 2.00)),
+    Feature('leisure', 'dog_park',              StyleSymbol(u'\U0001F43E',  'D',  FontSymbol(20), '#844',  100, 1.00)),
 
     # Amenities - Sustenance
-    Feature('amenity', 'ice_cream',             StyleSymbol(u'\U0001F366',  'IC', FontEmoji(16),  '#844',  100, 1.0)),
-    Feature('amenity', 'pub',                   StyleSymbol(u'\U0001F37A',  'P',  FontEmoji(16),  '#844',  100, 1.0)),
-    Feature('amenity', 'bar',                   StyleSymbol(u'\U0001F377',  'B',  FontEmoji(16),  '#844',  100, 1.0)),
-    Feature('amenity', 'cafe',                  StyleSymbol(u'\U0001F375',  'C',  FontEmoji(16),  '#844',  100, 1.0)),
-    Feature('amenity', 'fast_food',             StyleSymbol(u'\U0001F35F',  'FF', FontEmoji(16),  '#844',  100, 1.0)),
-    Feature('amenity', 'restaurant',            StyleSymbol(u'\U0001F374',  'R',  FontSymbol(20), '#844',  100, 1.0)),
-    Feature('amenity', 'food_court',            StyleSymbol(u'\U0001F37D',  'FC', FontSymbol(24), '#844',  100, 0.5)),
+    Feature('amenity', 'ice_cream',             StyleSymbol(u'\U0001F366',  'IC', FontEmoji(16),  '#844',  100, 1.00)),
+    Feature('amenity', 'pub',                   StyleSymbol(u'\U0001F37A',  'P',  FontEmoji(16),  '#844',  100, 1.00)),
+    Feature('amenity', 'bar',                   StyleSymbol(u'\U0001F377',  'B',  FontEmoji(16),  '#844',  100, 1.00)),
+    Feature('amenity', 'cafe',                  StyleSymbol(u'\U0001F375',  'C',  FontEmoji(16),  '#844',  100, 1.00)),
+    Feature('amenity', 'fast_food',             StyleSymbol(u'\U0001F35F',  'FF', FontEmoji(16),  '#844',  100, 1.00)),
+    Feature('amenity', 'restaurant',            StyleSymbol(u'\U0001F374',  'R',  FontSymbol(20), '#844',  100, 1.00)),
+    Feature('amenity', 'food_court',            StyleSymbol(u'\U0001F37D',  'FC', FontSymbol(28), '#844',  100, 0.25)),
 
     # Amenities - Entertainment, Arts & Culture
-    Feature('leisure', 'adult_gaming_centre',   StyleSymbol(u'\U0001F3B0',  '?',  FontEmoji(16),  '#d80',  100, 1.0)),
-    Feature('amenity', 'casino',                StyleSymbol(u'\U0001F3B2',  '?',  FontEmoji(16),  '#d80',  100, 1.0)),
-    Feature('amenity', 'arts_centre',           StyleSymbol(u'\U0001F3A8',  'A',  FontEmoji(16),  '#d80',  100, 1.0)),
-    Feature('amenity', 'theatre',               StyleSymbol(u'\U0001F3AD',  'T',  FontEmoji(16),  '#d80',  100, 1.0)),
-    Feature('amenity', 'cinema',                StyleSymbol(u'\U0001F3AC',  'C',  FontEmoji(16),  '#d80',  100, 1.0)),
+    Feature('leisure', 'adult_gaming_centre',   StyleSymbol(u'\U0001F3B0',  '?',  FontEmoji(16),  '#d80',  100, 1.00)),
+    Feature('amenity', 'casino',                StyleSymbol(u'\U0001F3B2',  '?',  FontEmoji(16),  '#d80',  100, 1.00)),
+    Feature('amenity', 'arts_centre',           StyleSymbol(u'\U0001F3A8',  'A',  FontEmoji(16),  '#d80',  100, 1.00)),
+    Feature('amenity', 'theatre',               StyleSymbol(u'\U0001F3AD',  'T',  FontEmoji(16),  '#d80',  100, 1.00)),
+    Feature('amenity', 'cinema',                StyleSymbol(u'\U0001F3AC',  'C',  FontEmoji(16),  '#d80',  100, 1.00)),
 
     # Amenities - Education
 

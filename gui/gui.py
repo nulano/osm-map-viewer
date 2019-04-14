@@ -343,12 +343,23 @@ class GuiWorker:
         self.gui = gui
         renderer.nulano_gui_callback = self._status  # patch renderer
 
+        # patch base artist:
+        try:
+            import base_artist
+
+            def warning():
+                gui.queue_callback.put(lambda: messagebox.showwarning('Font missing', 'Some fonts failed to load!'))
+                base_artist.nulano_warn_font = lambda *a: None
+
+            base_artist.nulano_warn_font = warning
+            base_artist.nulano_log = log
+        except ImportError:
+            pass
+
         # patch symbol artist:
         try:
             import a7_symbol_artist
-            a7_symbol_artist.nulano_warn = lambda title, message: gui.queue_callback.put(
-                    lambda: messagebox.showwarning(title, message)
-            )
+            a7_symbol_artist.nulano_warn = lambda *a: gui.queue_callback.put(lambda: messagebox.showwarning(*a))
         except ImportError:
             pass
 

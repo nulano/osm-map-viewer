@@ -14,6 +14,14 @@ from location_filter import Rectangle
 from osm_helper import OsmHelper, tag_dict
 
 
+def nulano_log(*message, level, **kwargs):
+    print(*message, **kwargs)
+
+
+def nulano_warn_font():
+    pass
+
+
 def transform_shapes(shapes: List[List[Tuple[float, float]]], camera: Camera):
     return [[camera.gps_to_px(point) for point in shape] for shape in shapes]
 
@@ -272,10 +280,10 @@ class Font(dict):
     def __missing__(self, size):
         try:
             font = ImageFont.truetype(font=self.name, size=size)
-        except IOError:
+        except IOError as ex:
             font = None
-            import traceback
-            traceback.print_exc(chain=False)
+            nulano_log('missing font "{}" at size {}: {}'.format(self.name, size, repr(ex)), level=2)
+            nulano_warn_font()
         self[size] = font
         return font
 

@@ -7,3 +7,5 @@ venv/
 maps/
 fonts/*.zip
 fonts/*.ttf.png
+!maps/london_small.osm
+!maps/london_westminster.osm

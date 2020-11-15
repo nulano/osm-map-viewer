@@ -1,0 +1,2 @@
+numpy
+Pillow>=6.1.0
